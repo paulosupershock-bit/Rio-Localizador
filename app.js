@@ -1,28 +1,20 @@
 // Configuração do Firebase
 // Lembre-se de colar as credenciais exatas do seu console do Firebase!
-// Configuração do Firebase (COM AS SUAS CREDENCIAIS REAIS)
+// Configuração do Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyBNkf6_wsmi3lH53oZyY50YDWt7mCAdwzk",
   authDomain: "riolocalizador.firebaseapp.com",
-  databaseURL: "https://riolocalizador-default-rtdb.firebaseio.com", // Verifique se essa URL está correta no seu console
+  databaseURL: "https://riolocalizador-default-rtdb.firebaseio.com",
   projectId: "riolocalizador",
   storageBucket: "riolocalizador.firebasestorage.app",
   messagingSenderId: "698167641664",
   appId: "1:698167641664:web:fd4d41f8c221a460e401a5"
 };
 
-// Inicializa o Firebase (formato compat)
-firebase.initializeApp(firebaseConfig);
-
-// Declarações de constantes que você já tem
-const auth = firebase.auth();
-const database = firebase.database();
-// Inicializa o Firebase
+// Inicializa o Firebase — DEIXE SÓ UMA VEZ!
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
-const database = firebase.database();
-
-// Variáveis Globais
+const database = firebase.database();// Variáveis Globais
 let map = null;
 let userMarker = null;
 let watchId = null;
@@ -141,7 +133,7 @@ function startLocationTracking(uid) {
     (error) => console.error("Erro no GPS: ", error),
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
-}
+}	
 function listenToOtherLocations() {
   const locationsRef = database.ref('locations');
 
