@@ -1,15 +1,26 @@
 // Configuração do Firebase
 // Lembre-se de colar as credenciais exatas do seu console do Firebase!
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY_AQUI",
-  authDomain: "seu-projeto.firebaseapp.com",
-  databaseURL: "https://seu-projeto-default-rtdb.firebaseio.com",
-  projectId: "seu-projeto",
-  storageBucket: "seu-projeto.appspot.com",
-  messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:123456"
+  apiKey: "AIzaSyBNkf6_wsmi3lH53oZyY50YDWt7mCAdwzk",
+  authDomain: "riolocalizador.firebaseapp.com",
+  projectId: "riolocalizador",
+  storageBucket: "riolocalizador.firebasestorage.app",
+  messagingSenderId: "698167641664",
+  appId: "1:698167641664:web:fd4d41f8c221a460e401a5",
+  measurementId: "G-DR6MVHS9NJ"
 };
 
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 // Inicializa o Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
