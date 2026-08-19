@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Rio Localizador</title>
+
+  <!-- CSS do Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- CSS Personalizado -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- Tela de Autenticação -->
+  <div id="auth-screen" class="screen">
+    <div class="auth-box">
+      <h2>Rio Localizador</h2>
+      <p>Acompanhe localizações em tempo real</p>
+      
+      <form id="login-form">
+        <input type="email" id="email" placeholder="Seu e-mail" required />
+        <input type="password" id="password" placeholder="Sua senha" required />
+        <button type="submit" id="btn-login">Entrar</button>
+        <button type="button" id="btn-register" class="btn-secondary">Cadastrar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tela Principal do Mapa -->
+  <div id="map-screen" class="screen hidden">
+    
+    <!-- Cabeçalho / Barra Superior -->
+    <header class="app-header">
+      <button id="btn-open-drawer" class="icon-btn" aria-label="Abrir Menu">☰</button>
+      <h1>Rio Localizador</h1>
+      <button id="btn-logout">Sair</button>
+    </header>
+
+    <!-- Camada de Fundo Escuro para Fechar o Menu -->
+    <div id="drawer-overlay" class="drawer-overlay hidden"></div>
+
+    <!-- Menu Lateral Dobrável (Drawer) -->
+    <aside id="drawer" class="drawer">
+      <div class="drawer-header">
+        <h2>Contatos e Solicitações</h2>
+        <button id="btn-close-drawer" class="close-btn">&times;</button>
+      </div>
+
+      <div class="drawer-content">
+        <!-- Adicionar Amigo -->
+        <section class="drawer-section">
+          <h3>Adicionar Amigo</h3>
+          <form id="add-friend-form">
+            <input type="email" id="friend-email-input" placeholder="E-mail do contato..." required />
+            <button type="submit">Enviar Pedido</button>
+          </form>
+        </section>
+
+        <!-- Solicitações Pendentes -->
+        <section class="drawer-section">
+          <h3>Solicitações Pendentes</h3>
+          <div id="pending-requests-list" class="requests-list">
+            <!-- Itens inseridos dinamicamente via JS -->
+          </div>
+        </section>
+
+        <!-- Lista de Amigos / Trajetos -->
+        <section class="drawer-section">
+          <h3>Meus Contatos</h3>
+          <div id="friends-list" class="friends-list">
+            <!-- Lista dinâmica de amigos -->
+          </div>
+          <button id="btn-toggle-history" class="btn-history">Ver Meu Trajeto (30 dias)</button>
+        </section>
+      </div>
+    </aside>
+
+    <!-- Recipiente do Mapa Leaflet -->
+    <div id="map"></div>
+
+    <!-- Barra de Controle Inferior -->
+    <footer class="app-controls">
+      <button id="btn-recenter">Centralizar no Meu GPS</button>
+    </footer>
+  </div>
+
+  <!-- SDKs do Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Script Principal -->
+  <script src="js/app.js"></script>
+</body>
+</html>
