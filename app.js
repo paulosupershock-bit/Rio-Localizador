@@ -1,3 +1,242 @@
+// Configuração do Firebase
+// Lembre-se de colar as credenciais exatas do seu console do Firebase!
+const firebaseConfig = {
+  apiKey: "SUA_API_KEY_AQUI",
+  authDomain: "seu-projeto.firebaseapp.com",
+  databaseURL: "https://seu-projeto-default-rtdb.firebaseio.com",
+  projectId: "seu-projeto",
+  storageBucket: "seu-projeto.appspot.com",
+  messagingSenderId: "1234567890",
+  appId: "1:1234567890:web:123456"
+};
+
+// Inicializa o Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const database = firebase.database();
+
+// Variáveis Globais
+let map = null;
+let userMarker = null;
+let watchId = null;
+const otherMarkers = {};
+
+// Elementos da DOM
+const authScreen = document.getElementById("auth-screen");
+const mapScreen = document.getElementById("map-screen");
+const loginForm = document.getElementById("login-form");
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+const btnRegister = document.getElementById("btn-register");
+const btnLogout = document.getElementById("btn-logout");
+const btnRecenter = document.getElementById("btn-recenter");
+
+// --- Event Listeners ---
+
+// Autenticação: Login
+loginForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const email = emailInput.value;
+  const password = passwordInput.value;
+
+  auth.signInWithEmailAndPassword(email, password)
+    .catch((error) => alert("Erro ao entrar: " + error.message));
+});
+
+// Autenticação: Cadastro
+btnRegister.addEventListener("click", () => {
+  const email = emailInput.value;
+  const password = passwordInput.value;
+
+  if (!email || !password) {
+    alert("Preencha e-mail e senha para cadastrar.");
+    return;
+  }
+
+  auth.createUserWithEmailAndPassword(email, password)
+    .then(() => alert("Conta criada com sucesso!"))
+    .catch((error) => alert("Erro ao cadastrar: " + error.message));
+});
+
+// Autenticação: Logout
+btnLogout.addEventListener("click", () => {
+  auth.signOut();
+});
+
+// Observador do Estado de Autenticação
+auth.onAuthStateChanged((user) => {
+  if (user) {
+    authScreen.classList.add("hidden");
+    mapScreen.classList.remove("hidden");
+    initMap();
+    startLocationTracking(user.uid);
+    listenToOtherLocations();
+  } else {
+    if (watchId) navigator.geolocation.clearWatch(watchId);
+    authScreen.classList.remove("hidden");
+    mapScreen.classList.add("hidden");
+  }
+});
+
+// --- Funções do Mapa e Geolocalização ---
+
+function initMap() {
+  if (map) return; // Evita recriar o mapa se já existir
+
+  // Coordenadas padrão do Rio de Janeiro
+  const rioCoords = [-22.9068, -43.1729];
+  
+  map = L.map('map').setView(rioCoords, 13);
+
+  // Adiciona a camada de mapa do OpenStreetMap
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  btnRecenter.addEventListener("click", () => {
+    if (userMarker) {
+      map.setView(userMarker.getLatLng(), 16);
+    }
+  });
+}
+
+function startLocationTracking(uid) {
+  if (!navigator.geolocation) {
+    alert("Geolocalização não é suportada pelo seu navegador.");
+    return;
+  }
+
+  // Acompanha a posição em tempo real do GPS
+  watchId = navigator.geolocation.watchPosition(
+    (position) => {
+      const { latitude, longitude } = position.coords;
+      const latLng = [latitude, longitude];
+
+      // Atualiza marcador local
+      if (!userMarker) {
+        userMarker = L.marker(latLng).addTo(map).bindPopup("Você está aqui").openPopup();
+        map.setView(latLng, 15);
+      } else {
+        userMarker.setLatLng(latLng);
+      }
+
+      // Envia a posição atualizada para o Realtime Database do Firebase
+      database.ref('locations/' + uid).set({
+        latitude: latitude,
+        longitude: longitude,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
+    },
+    (error) => console.error("Erro no GPS: ", error),
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+function listenToOtherLocations() {
+  const locationsRef = database.ref('locations');
+
+  locationsRef.on('child_added', (snapshot) => {
+    updateOtherUserMarker(snapshot.key, snapshot.val());
+  });
+
+  locationsRef.on('child_changed', (snapshot) => {
+    updateOtherUserMarker(snapshot.key, snapshot.val());
+  });
+
+  locationsRef.on('child_removed', (snapshot) => {
+    const uid = snapshot.key;
+    if (otherMarkers[uid]) {
+      map.removeLayer(otherMarkers[uid]);
+      delete otherMarkers[uid];
+    }
+  });
+}
+
+function updateOtherUserMarker(uid, data) {
+  const currentUserId = auth.currentUser ? auth.currentUser.uid : null;
+  if (uid === currentUserId || !data) return; // Ignora o próprio usuário
+
+  const latLng = [data.latitude, data.longitude];
+
+  if (!otherMarkers[uid]) {
+    otherMarkers[uid] = L.marker(latLng).addTo(map).bindPopup("Usuário: " + uid);
+  } else {
+    otherMarkers[uid].setLatLng(latLng);
+  }
+}
+
+// Calcula distância entre dois pontos em metros
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3; // Raio da Terra em metros
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+          Math.cos(φ1) * Math.cos(φ2) *
+          Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  return R * c; // Distância em metros
+}
+
+// Chame esta verificação sempre que a posição de um amigo for atualizada:
+function checkProximityAlert(friendUid, friendLat, friendLng) {
+  if (!userMarker) return;
+  const myPos = userMarker.getLatLng();
+  
+  const distance = calculateDistance(myPos.lat, myPos.lng, friendLat, friendLng);
+  const ALARM_RADIUS_METERS = 500; // Raio configurável
+
+  if (distance <= ALARM_RADIUS_METERS) {
+    // Solicita permissão de notificação nativa do navegador/Android se necessário
+    if (Notification.permission === "granted") {
+      new Notification("Amigo Próximo!", {
+        body: `Um amigo está a apenas ${Math.round(distance)}m de você.`,
+        icon: "/icon.png"
+      });
+    } else {
+      alert(`⚠️ Amigo Próximo! Um amigo está a ${Math.round(distance)}m de você.`);
+    }
+  }
+}
+
+// Aceitar solicitação de amizade
+function acceptFriendRequest(friendUid) {
+  const currentUid = auth.currentUser.uid;
+
+  // Atualiza em ambas as pontas para amizade mútua
+  const updates = {};
+  updates[`/friendships/${currentUid}/${friendUid}`] = 'accepted';
+  updates[`/friendships/${friendUid}/${currentUid}`] = 'accepted';
+
+  database.ref().update(updates)
+    .then(() => alert("Solicitação aceita!"))
+    .catch((err) => alert("Erro ao aceitar: " + err.message));
+}
+
+// Recusar ou cancelar solicitação
+function rejectFriendRequest(friendUid) {
+  const currentUid = auth.currentUser.uid;
+
+  const updates = {};
+  updates[`/friendships/${currentUid}/${friendUid}`] = null;
+  updates[`/friendships/${friendUid}/${currentUid}`] = null;
+
+  database.ref().update(updates)
+    .then(() => alert("Solicitação removida."))
+    .catch((err) => alert("Erro ao recusar: " + err.message));
+}
+
+// Salva no histórico a cada atualização do GPS
+database.ref(`location_history/${uid}`).push({
+  latitude: latitude,
+  longitude: longitude,
+  timestamp: firebase.database.ServerValue.TIMESTAMP
+});
+
 let currentPolyline = null;
 
 function drawUserHistory(targetUid) {
@@ -28,39 +267,4 @@ function drawUserHistory(targetUid) {
         alert("Nenhum trajeto encontrado nos últimos 30 dias.");
       }
     });
-}
-
-// Seleção dos elementos do Drawer
-const drawer = document.getElementById("drawer");
-const drawerOverlay = document.getElementById("drawer-overlay");
-const btnOpenDrawer = document.getElementById("btn-open-drawer");
-const btnCloseDrawer = document.getElementById("btn-close-drawer");
-const addFriendForm = document.getElementById("add-friend-form");
-const friendEmailInput = document.getElementById("friend-email-input");
-
-// Abrir Drawer
-btnOpenDrawer.addEventListener("click", () => {
-  drawer.classList.add("open");
-  drawerOverlay.classList.remove("hidden");
-});
-
-// Fechar Drawer
-function closeDrawer() {
-  drawer.classList.remove("open");
-  drawerOverlay.classList.add("hidden");
-}
-
-btnCloseDrawer.addEventListener("click", closeDrawer);
-drawerOverlay.addEventListener("click", closeDrawer);
-
-// Evento do Formulário de Adicionar Amigo
-if (addFriendForm) {
-  addFriendForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const email = friendEmailInput.value.trim();
-    if (email) {
-      sendFriendRequest(email);
-      friendEmailInput.value = "";
-    }
-  });
 }
