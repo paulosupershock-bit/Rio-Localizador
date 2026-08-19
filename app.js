@@ -1,26 +1,22 @@
 // Configuração do Firebase
 // Lembre-se de colar as credenciais exatas do seu console do Firebase!
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// Configuração do Firebase (COM AS SUAS CREDENCIAIS REAIS)
 const firebaseConfig = {
   apiKey: "AIzaSyBNkf6_wsmi3lH53oZyY50YDWt7mCAdwzk",
   authDomain: "riolocalizador.firebaseapp.com",
+  databaseURL: "https://riolocalizador-default-rtdb.firebaseio.com", // Verifique se essa URL está correta no seu console
   projectId: "riolocalizador",
   storageBucket: "riolocalizador.firebasestorage.app",
   messagingSenderId: "698167641664",
-  appId: "1:698167641664:web:fd4d41f8c221a460e401a5",
-  measurementId: "G-DR6MVHS9NJ"
+  appId: "1:698167641664:web:fd4d41f8c221a460e401a5"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+// Inicializa o Firebase (formato compat)
+firebase.initializeApp(firebaseConfig);
+
+// Declarações de constantes que você já tem
+const auth = firebase.auth();
+const database = firebase.database();
 // Inicializa o Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
@@ -113,37 +109,39 @@ function initMap() {
 }
 
 function startLocationTracking(uid) {
-  if (!navigator.geolocation) {
-    alert("Geolocalização não é suportada pelo seu navegador.");
-    return;
-  }
+  // ... (código anterior da função) ...
 
-  // Acompanha a posição em tempo real do GPS
   watchId = navigator.geolocation.watchPosition(
     (position) => {
       const { latitude, longitude } = position.coords;
       const latLng = [latitude, longitude];
 
-      // Atualiza marcador local
-      if (!userMarker) {
-        userMarker = L.marker(latLng).addTo(map).bindPopup("Você está aqui").openPopup();
-        map.setView(latLng, 15);
-      } else {
-        userMarker.setLatLng(latLng);
-      }
+      // ... (código para atualizar o marcador do usuário, se houver) ...
 
-      // Envia a posição atualizada para o Realtime Database do Firebase
+      // --- PARTE DE SALVAMENTO NO BANCO ---
+
+      // 1. Atualiza a localização ATUAL em tempo real (DEIXE ESTE TRECHO AQUI)
       database.ref('locations/' + uid).set({
         latitude: latitude,
         longitude: longitude,
         timestamp: firebase.database.ServerValue.TIMESTAMP
       });
+
+      // 2. Salva um registro no HISTÓRICO (COLE ESTE TRECHO LOGO ABAIXO)
+      database.ref(`location_history/${uid}`).push({
+        latitude: latitude,
+        longitude: longitude,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
+
+      // --- FIM DA PARTE DE SALVAMENTO ---
+
+      // ... (resto do código da função, como o console.error) ...
     },
     (error) => console.error("Erro no GPS: ", error),
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
 }
-
 function listenToOtherLocations() {
   const locationsRef = database.ref('locations');
 
@@ -241,12 +239,6 @@ function rejectFriendRequest(friendUid) {
     .catch((err) => alert("Erro ao recusar: " + err.message));
 }
 
-// Salva no histórico a cada atualização do GPS
-database.ref(`location_history/${uid}`).push({
-  latitude: latitude,
-  longitude: longitude,
-  timestamp: firebase.database.ServerValue.TIMESTAMP
-});
 
 let currentPolyline = null;
 
