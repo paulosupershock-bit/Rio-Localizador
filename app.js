@@ -1,6 +1,5 @@
 // Configuração do Firebase
 // Lembre-se de colar as credenciais exatas do seu console do Firebase!
-// Configuração do Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyBNkf6_wsmi3lH53oZyY50YDWt7mCAdwzk",
   authDomain: "riolocalizador.firebaseapp.com",
