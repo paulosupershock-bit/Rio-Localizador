@@ -264,3 +264,26 @@ function drawUserHistory(targetUid) {
       }
     });
 }
+
+// --- ENTRAR COM CONTA DO GOOGLE ---
+
+// Cria o provedor do Google
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+// Pega o botão
+const btnGoogleLogin = document.getElementById("btn-google-login");
+
+// Ação ao clicar no botão
+btnGoogleLogin.addEventListener("click", () => {
+  auth.signInWithPopup(googleProvider)
+    .then((result) => {
+      // Login bem-sucedido
+      const user = result.user;
+      alert("Login com Google bem-sucedido! Bem-vindo, " + user.displayName);
+    })
+    .catch((error) => {
+      // Se o usuário fechou a janela ou deu erro
+      if (error.code !== "auth/popup-closed-by-user") {
+        alert("Erro ao entrar com Google: " + error.message);
+      }
+});

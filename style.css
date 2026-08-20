@@ -264,3 +264,13 @@ html, body {
   background-color: #4364f7 !important;
   margin-top: 12px;
 }
+
+.btn-google {
+  background-color: #4285F4;
+  color: white;
+  border: none;
+  margin-top: 10px;
+}
+.btn-google:hover {
+  background-color: #3367D6;
+}
