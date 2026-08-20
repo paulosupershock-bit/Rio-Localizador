@@ -31,30 +31,25 @@ const btnRegister = document.getElementById("btn-register");
 const btnLogout = document.getElementById("btn-logout");
 const btnRecenter = document.getElementById("btn-recenter");
 
-// --- CONTROLE DO MENU LATERAL (DRAWER) ---
-
+// --- CONTROLE DO MENU LATERAL ---
 const btnOpenDrawer = document.getElementById("btn-open-drawer");
 const btnCloseDrawer = document.getElementById("btn-close-drawer");
-const drawerOverlay = document.getElementById("drawer-overlay");
 const drawer = document.getElementById("drawer");
+const overlay = document.getElementById("drawer-overlay");
 
-// Função para fechar o menu
-function closeDrawer() {
-  drawer.classList.remove("is-open"); // Remove classe para esconder o menu
-  drawerOverlay.classList.add("hidden"); // Esconde o overlay
-  document.body.style.overflow = ''; // Permite scroll da página novamente
+function openDrawer() {   // ← Nome antigo
+  drawer.classList.remove("hidden");
+  overlay.classList.remove("hidden");
 }
 
-// --- Event Listeners ---
+function closeDrawer() {   // ← Nome antigo
+  drawer.classList.add("hidden");
+  overlay.classList.add("hidden");
+}
 
-// Event Listener para abrir o menu
 btnOpenDrawer.addEventListener("click", openDrawer);
-
-// Event Listener para fechar o menu pelo botão de fechar
 btnCloseDrawer.addEventListener("click", closeDrawer);
-
-// Event Listener para fechar o menu clicando no overlay
-drawerOverlay.addEventListener("click", closeDrawer);
+overlay.addEventListener("click", closeDrawer);
 
 // Opcional: Fechar menu se a tecla ESC for pressionada
 document.addEventListener('keydown', (event) => {
