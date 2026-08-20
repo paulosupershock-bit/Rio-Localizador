@@ -1,17 +1,21 @@
-// Your web app's Firebase configuration
+// Configuração do Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyBNkf6_wsmi3lH53oZyY50YDWt7mCAdwzk",
   authDomain: "riolocalizador.firebaseapp.com",
+  databaseURL: "https://riolocalizador-default-rtdb.firebaseio.com",
   projectId: "riolocalizador",
   storageBucket: "riolocalizador.firebasestorage.app",
   messagingSenderId: "698167641664",
-  appId: "1:698167641664:web:fd4d41f8c221a460e401a5",
-  measurementId: "G-DR6MVHS9NJ"
+  appId: "1:698167641664:web:fd4d41f8c221a460e401a5"
 };
 
-// Initialize Firebase
+// Inicializa o Firebase — SÓ UMA VEZ! SEM LINHAS DE IMPORT!
+firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
-const database = firebase.database();// Variáveis Globais
+const database = firebase.database();
+
+// --- O RESTO DO SEU CÓDIGO CONTINUA IGUAL ABAIXO ---
+// Variáveis Globais
 let map = null;
 let userMarker = null;
 let watchId = null;
