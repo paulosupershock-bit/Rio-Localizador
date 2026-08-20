@@ -286,4 +286,5 @@ btnGoogleLogin.addEventListener("click", () => {
       if (error.code !== "auth/popup-closed-by-user") {
         alert("Erro ao entrar com Google: " + error.message);
       }
-});
+  });
+}); 
