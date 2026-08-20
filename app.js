@@ -1,17 +1,24 @@
-// Configuração do Firebase
-// Lembre-se de colar as credenciais exatas do seu console do Firebase!
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBNkf6_wsmi3lH53oZyY50YDWt7mCAdwzk",
   authDomain: "riolocalizador.firebaseapp.com",
-  databaseURL: "https://riolocalizador-default-rtdb.firebaseio.com",
   projectId: "riolocalizador",
   storageBucket: "riolocalizador.firebasestorage.app",
   messagingSenderId: "698167641664",
-  appId: "1:698167641664:web:fd4d41f8c221a460e401a5"
+  appId: "1:698167641664:web:fd4d41f8c221a460e401a5",
+  measurementId: "G-DR6MVHS9NJ"
 };
 
-// Inicializa o Firebase — DEIXE SÓ UMA VEZ!
-firebase.initializeApp(firebaseConfig);
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 const auth = firebase.auth();
 const database = firebase.database();// Variáveis Globais
 let map = null;
