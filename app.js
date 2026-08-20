@@ -31,7 +31,37 @@ const btnRegister = document.getElementById("btn-register");
 const btnLogout = document.getElementById("btn-logout");
 const btnRecenter = document.getElementById("btn-recenter");
 
+// --- CONTROLE DO MENU LATERAL (DRAWER) ---
+
+const btnOpenDrawer = document.getElementById("btn-open-drawer");
+const btnCloseDrawer = document.getElementById("btn-close-drawer");
+const drawerOverlay = document.getElementById("drawer-overlay");
+const drawer = document.getElementById("drawer");
+
+// Função para fechar o menu
+function closeDrawer() {
+  drawer.classList.remove("is-open"); // Remove classe para esconder o menu
+  drawerOverlay.classList.add("hidden"); // Esconde o overlay
+  document.body.style.overflow = ''; // Permite scroll da página novamente
+}
+
 // --- Event Listeners ---
+
+// Event Listener para abrir o menu
+btnOpenDrawer.addEventListener("click", openDrawer);
+
+// Event Listener para fechar o menu pelo botão de fechar
+btnCloseDrawer.addEventListener("click", closeDrawer);
+
+// Event Listener para fechar o menu clicando no overlay
+drawerOverlay.addEventListener("click", closeDrawer);
+
+// Opcional: Fechar menu se a tecla ESC for pressionada
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && drawer.classList.contains('is-open')) {
+    closeDrawer();
+  }
+});
 
 // Autenticação: Login
 loginForm.addEventListener("submit", (e) => {
