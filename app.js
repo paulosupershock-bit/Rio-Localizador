@@ -1,5 +1,3 @@
-// Import the functions you need from the SDKs you need
-
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBNkf6_wsmi3lH53oZyY50YDWt7mCAdwzk",
