@@ -158,33 +158,71 @@ function initMap() {
   });
 }
 
-// Rastreamento GPS Próprio
+// Rastreamento GPS Próprio com Fallback para IP
 function startLocationTracking(uid) {
+  // Tenta obter a localização de alta precisão via GPS
   watchId = navigator.geolocation.watchPosition(
     (position) => {
       const { latitude, longitude } = position.coords;
-      const latLng = [latitude, longitude];
-
-      if (!userMarker) {
-        userMarker = L.marker(latLng).addTo(map).bindPopup("Você está aqui");
-        map.setView(latLng, 15);
-      } else {
-        userMarker.setLatLng(latLng);
-      }
-
-      const timestamp = firebase.database.ServerValue.TIMESTAMP;
-
-      // Localização Atual
-      database.ref('locations/' + uid).set({ latitude, longitude, timestamp });
-
-      // Histórico
-      database.ref(`location_history/${uid}`).push({ latitude, longitude, timestamp });
+      processUserLocation(uid, latitude, longitude, "GPS");
     },
-    (error) => console.error("Erro GPS: ", error),
+    (error) => {
+      console.warn("Falha no GPS (" + error.message + "). Tentando geolocalização por IP...");
+      // Se o GPS falhar ou for negado, busca por IP
+      getLocationByIP(uid);
+    },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
 }
 
+// Consulta a API gratuita ipapi.co para pegar a posição aproximada da rede
+function getLocationByIP(uid) {
+  fetch('https://ipapi.co/json/')
+    .then(response => response.json())
+    .then(data => {
+      if (data.latitude && data.longitude) {
+        console.log(`Localização por IP obtida (${data.city}, ${data.region})`);
+        processUserLocation(uid, data.latitude, data.longitude, "IP (Aproximado)");
+      } else {
+        alert("Não foi possível obter sua localização nem via GPS nem via IP.");
+      }
+    })
+    .catch(err => {
+      console.error("Erro ao buscar IP:", err);
+      alert("Erro ao conectar ao serviço de geolocalização por IP.");
+    });
+}
+
+// Atualiza o mapa e salva as coordenadas no Firebase
+function processUserLocation(uid, latitude, longitude, sourceLabel) {
+  const latLng = [latitude, longitude];
+
+  if (!userMarker) {
+    userMarker = L.marker(latLng).addTo(map).bindPopup(`Você está aqui (${sourceLabel})`);
+    map.setView(latLng, sourceLabel === "GPS" ? 15 : 12); // Zoom menor se for via IP
+  } else {
+    userMarker.setLatLng(latLng);
+    userMarker.getPopup().setContent(`Você está aqui (${sourceLabel})`);
+  }
+
+  const timestamp = firebase.database.ServerValue.TIMESTAMP;
+
+  // Localização Atual
+  database.ref('locations/' + uid).set({
+    latitude,
+    longitude,
+    source: sourceLabel,
+    timestamp
+  });
+
+  // Histórico
+  database.ref(`location_history/${uid}`).push({
+    latitude,
+    longitude,
+    source: sourceLabel,
+    timestamp
+  });
+}
 // --- GERENCIAMENTO DE AMIGOS E SOLICITAÇÕES ---
 
 if (addFriendForm) {
