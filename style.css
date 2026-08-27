@@ -274,3 +274,56 @@ html, body {
 .btn-google:hover {
   background-color: #3367D6;
 }
+
+/* Estilização da Lista de Amigos e Horários */
+.friend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.friend-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.friend-info strong {
+  font-size: 13px;
+  color: #333;
+}
+
+.time-status {
+  font-size: 11px;
+}
+
+.time-status.online {
+  color: #2e7d32; /* Verde */
+}
+
+.time-status.outdated {
+  color: #c62828; /* Vermelho alerta */
+  font-weight: bold;
+}
+
+.btn-history-small {
+  padding: 6px 10px !important;
+  font-size: 11px !important;
+  width: auto !important;
+  background-color: #0052d4 !important;
+}
+
+.btn-accept {
+  background-color: #2e7d32 !important;
+}
+
+.pending-request-item div {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
