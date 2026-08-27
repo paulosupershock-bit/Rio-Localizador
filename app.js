@@ -216,17 +216,26 @@ function initMap() {
 
 
 
-  btnRecenter.addEventListener("click", () => {
-
-    if (userMarker) {
-
-      map.setView(userMarker.getLatLng(), 16);
-
-    }
-
-  });
-
-}
+ btnRecenter.addEventListener("click", () => {
+  if (userMarker) {
+    // Se o marcador do usuário já existe, foca nele
+    const position = userMarker.getLatLng();
+    map.setView(position, 16);
+    userMarker.openPopup();
+  } else {
+    // Caso o GPS ainda esteja obtendo o primeiro sinal
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        map.setView([latitude, longitude], 16);
+      },
+      (error) => {
+        alert("Não foi possível obter sua localização atual. Verifique se o GPS está ativado.");
+      },
+      { enableHighAccuracy: true }
+    );
+  }
+});
 
 
 
