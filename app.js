@@ -40,6 +40,8 @@ let userMarker = null;
 
 let watchId = null;
 
+let lastSavedPosition = null;
+
 const otherMarkers = {};
 
 
@@ -229,135 +231,121 @@ function initMap() {
 
 
 function startLocationTracking(uid) {
-
-  // ... (código anterior da função) ...
-
-
-
   watchId = navigator.geolocation.watchPosition(
-
     (position) => {
-
       const { latitude, longitude } = position.coords;
-
       const latLng = [latitude, longitude];
 
+      // --- 1. Atualiza/Cria o marcador do PRÓPRIO usuário ---
+      if (!userMarker) {
+        userMarker = L.marker(latLng).addTo(map).bindPopup("<b>Você</b>");
+      } else {
+        userMarker.setLatLng(latLng);
+      }
 
-
-      // ... (código para atualizar o marcador do usuário, se houver) ...
-
-
-
-      // --- PARTE DE SALVAMENTO NO BANCO ---
-
-
-
-      // 1. Atualiza a localização ATUAL em tempo real (DEIXE ESTE TRECHO AQUI)
-
+      // --- 2. Atualiza a localização ATUAL em tempo real (Sempre) ---
       database.ref('locations/' + uid).set({
-
         latitude: latitude,
-
         longitude: longitude,
-
         timestamp: firebase.database.ServerValue.TIMESTAMP
-
       });
 
+      // --- 3. Salva no HISTÓRICO apenas se moveu mais de 15 metros ---
+      let shouldSaveHistory = false;
 
+      if (!lastSavedPosition) {
+        // Primeiro ponto do dia: sempre salva
+        shouldSaveHistory = true;
+      } else {
+        // Calcula a distância entre a posição atual e a última salva
+        const distanceMoved = calculateDistance(
+          lastSavedPosition.lat, 
+          lastSavedPosition.lng, 
+          latitude, 
+          longitude
+        );
 
-      // 2. Salva um registro no HISTÓRICO (COLE ESTE TRECHO LOGO ABAIXO)
+        // Só grava se andou mais de 15 metros
+        if (distanceMoved >= 15) {
+          shouldSaveHistory = true;
+        }
+      }
 
-      database.ref(`location_history/${uid}`).push({
+      if (shouldSaveHistory) {
+        database.ref(`location_history/${uid}`).push({
+          latitude: latitude,
+          longitude: longitude,
+          timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
 
-        latitude: latitude,
-
-        longitude: longitude,
-
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-
-      });
-
-
-
-      // --- FIM DA PARTE DE SALVAMENTO ---
-
-
-
-      // ... (resto do código da função, como o console.error) ...
-
+        // Atualiza a referência do último ponto salvo
+        lastSavedPosition = { lat: latitude, lng: longitude };
+      }
     },
-
     (error) => console.error("Erro no GPS: ", error),
-
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-
   );
-
 }
 
 function listenToOtherLocations() {
-
   const locationsRef = database.ref('locations');
 
-
-
+  // Quando um amigo entra/conecta
   locationsRef.on('child_added', (snapshot) => {
-
-    updateOtherUserMarker(snapshot.key, snapshot.val());
-
+    const data = snapshot.val();
+    updateOtherUserMarker(snapshot.key, data);
+    if (data) checkProximityAlert(snapshot.key, data.latitude, data.longitude);
   });
 
-
-
+  // Quando a localização de um amigo muda (SEU NOVO TRECHO AQUI)
   locationsRef.on('child_changed', (snapshot) => {
-
-    updateOtherUserMarker(snapshot.key, snapshot.val());
-
+    const data = snapshot.val();
+    updateOtherUserMarker(snapshot.key, data);
+    if (data) checkProximityAlert(snapshot.key, data.latitude, data.longitude);
   });
 
-
-
+  // Quando um amigo se desconecta/remove a localização
   locationsRef.on('child_removed', (snapshot) => {
-
     const uid = snapshot.key;
-
     if (otherMarkers[uid]) {
-
       map.removeLayer(otherMarkers[uid]);
-
       delete otherMarkers[uid];
-
     }
-
   });
-
 }
 
 
-
 function updateOtherUserMarker(uid, data) {
-
   const currentUserId = auth.currentUser ? auth.currentUser.uid : null;
-
   if (uid === currentUserId || !data) return; // Ignora o próprio usuário
 
-
-
   const latLng = [data.latitude, data.longitude];
+  
+  // Nome a ser exibido (pode vir de data.displayName, data.email ou fallback pro UID curto)
+  const displayName = data.displayName || data.email || `Usuário (${uid.substring(0, 5)}...)`;
 
-
+  // Define um ícone vermelho para diferenciar dos seus marcadores
+  const friendIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
 
   if (!otherMarkers[uid]) {
-
-    otherMarkers[uid] = L.marker(latLng).addTo(map).bindPopup("Usuário: " + uid);
-
+    // Cria o marcador com ícone personalizado e popup formatado
+    otherMarkers[uid] = L.marker(latLng, { icon: friendIcon })
+      .addTo(map)
+      .bindPopup(`<b>${displayName}</b><br>Em movimento`);
   } else {
-
+    // Atualiza a posição suavemente sem recriar o marcador
     otherMarkers[uid].setLatLng(latLng);
-
   }
 
+  // Opcional: dispara alerta de proximidade se o usuário estiver por perto
+  checkProximityAlert(uid, data.latitude, data.longitude);
 }
 
 
