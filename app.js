@@ -37,13 +37,13 @@ const btnCloseDrawer = document.getElementById("btn-close-drawer");
 const drawer = document.getElementById("drawer");
 const overlay = document.getElementById("drawer-overlay");
 
-function openDrawer() {   // ← Nome antigo
-  drawer.classList.remove("hidden");
+function openDrawer() {
+  drawer.classList.add("open"); // <-- Adiciona a classe 'open' para mover de -300px para 0
   overlay.classList.remove("hidden");
 }
 
-function closeDrawer() {   // ← Nome antigo
-  drawer.classList.add("hidden");
+function closeDrawer() {
+  drawer.classList.remove("open"); // <-- Remove 'open' para recolher o menu
   overlay.classList.add("hidden");
 }
 
@@ -51,9 +51,9 @@ btnOpenDrawer.addEventListener("click", openDrawer);
 btnCloseDrawer.addEventListener("click", closeDrawer);
 overlay.addEventListener("click", closeDrawer);
 
-// Opcional: Fechar menu se a tecla ESC for pressionada
+// Fechar menu se a tecla ESC for pressionada
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && drawer.classList.contains('is-open')) {
+  if (event.key === 'Escape' && drawer.classList.contains('open')) {
     closeDrawer();
   }
 });
@@ -127,39 +127,38 @@ function initMap() {
 }
 
 function startLocationTracking(uid) {
-  // ... (código anterior da função) ...
-
   watchId = navigator.geolocation.watchPosition(
     (position) => {
       const { latitude, longitude } = position.coords;
       const latLng = [latitude, longitude];
 
-      // ... (código para atualizar o marcador do usuário, se houver) ...
+      // Atualiza ou cria o marcador do próprio usuário
+      if (!userMarker) {
+        userMarker = L.marker(latLng).addTo(map).bindPopup("Você está aqui");
+        map.setView(latLng, 15);
+      } else {
+        userMarker.setLatLng(latLng);
+      }
 
-      // --- PARTE DE SALVAMENTO NO BANCO ---
-
-      // 1. Atualiza a localização ATUAL em tempo real (DEIXE ESTE TRECHO AQUI)
+      // 1. Atualiza a localização ATUAL em tempo real
       database.ref('locations/' + uid).set({
         latitude: latitude,
         longitude: longitude,
         timestamp: firebase.database.ServerValue.TIMESTAMP
       });
 
-      // 2. Salva um registro no HISTÓRICO (COLE ESTE TRECHO LOGO ABAIXO)
+      // 2. Salva um registro no HISTÓRICO
       database.ref(`location_history/${uid}`).push({
         latitude: latitude,
         longitude: longitude,
         timestamp: firebase.database.ServerValue.TIMESTAMP
       });
-
-      // --- FIM DA PARTE DE SALVAMENTO ---
-
-      // ... (resto do código da função, como o console.error) ...
     },
     (error) => console.error("Erro no GPS: ", error),
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
-}	
+}
+
 function listenToOtherLocations() {
   const locationsRef = database.ref('locations');
 
