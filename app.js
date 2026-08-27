@@ -1,12 +1,14 @@
 // --- Configuração do Firebase ---
-// Substitua pelas suas credenciais do Firebase Console
+// // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
-  authDomain: "SEU_PROJETO.firebaseapp.com",
-  projectId: "SEU_PROJETO",
-  storageBucket: "SEU_PROJETO.appspot.com",
-  messagingSenderId: "SEU_SENDER_ID",
-  appId: "SEU_APP_ID"
+  apiKey: "AIzaSyBNkf6_wsmi3lH53oZyY50YDWt7mCAdwzk",
+  authDomain: "riolocalizador.firebaseapp.com",
+  databaseURL: "https://riolocalizador-default-rtdb.firebaseio.com",
+  projectId: "riolocalizador",
+  storageBucket: "riolocalizador.firebasestorage.app",
+  messagingSenderId: "698167641664",
+  appId: "1:698167641664:web:fd4d41f8c221a460e401a5",
+  measurementId: "G-DR6MVHS9NJ"
 };
 
 // Inicializa o Firebase
