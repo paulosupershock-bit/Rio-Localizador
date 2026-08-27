@@ -540,3 +540,74 @@ function drawUserHistory(targetUid, title = "Trajeto") {
       alert("Erro ao buscar histórico: " + error.message);
     });
 }
+
+// --- SISTEMA DE CONVITE POR LINK / WHATSAPP / E-MAIL ---
+const btnShareInvite = document.getElementById("btn-share-invite");
+
+if (btnShareInvite) {
+  btnShareInvite.addEventListener("click", () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    // Cria um ID de convite único apontando para o seu UID
+    const inviteRef = database.ref('invites').push();
+    const inviteId = inviteRef.key;
+
+    inviteRef.set({
+      fromUid: user.uid,
+      createdAt: firebase.database.ServerValue.TIMESTAMP
+    }).then(() => {
+      // Cria o link dinâmico baseado na URL atual do seu app
+      const baseUrl = window.location.origin + window.location.pathname;
+      const inviteUrl = `${baseUrl}?invite=${inviteId}`;
+      const message = `Olá! Quero compartilhar minha localização com você no Rio Localizador. Acesse o link para aceitar meu convite: ${inviteUrl}`;
+
+      // Se o navegador suportar o menu nativo de compartilhamento (Celulares)
+      if (navigator.share) {
+        navigator.share({
+          title: 'Convite - Rio Localizador',
+          text: message,
+          url: inviteUrl
+        }).catch(() => {});
+      } else {
+        // Fallback para PC: Copia o link e abre opção de WhatsApp
+        navigator.clipboard.writeText(inviteUrl);
+        alert("Link de convite copiado para a área de transferência! Envie para o seu amigo por E-mail ou SMS.\n\nLink: " + inviteUrl);
+      }
+    });
+  });
+}
+
+// Escutar se alguém abriu o aplicativo através de um link de convite (?invite=ID)
+function checkInviteUrl() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const inviteId = urlParams.get('invite');
+
+  if (inviteId && auth.currentUser) {
+    database.ref(`invites/${inviteId}`).once('value', (snapshot) => {
+      const inviteData = snapshot.val();
+      if (inviteData && inviteData.fromUid !== auth.currentUser.uid) {
+        const friendUid = inviteData.fromUid;
+        const myUid = auth.currentUser.uid;
+
+        // Aceita a amizade automaticamente para ambos
+        const updates = {};
+        updates[`/friendships/${myUid}/${friendUid}`] = 'accepted';
+        updates[`/friendships/${friendUid}/${myUid}`] = 'accepted';
+
+        database.ref().update(updates).then(() => {
+          alert(" Convite aceito! Vocês agora compartilham a localização.");
+          // Limpa a URL removendo o parâmetro do convite
+          window.history.replaceState({}, document.title, window.location.pathname);
+        });
+      }
+    });
+  }
+}
+
+// Executa a checagem do convite sempre que o usuário fizer login no app
+auth.onAuthStateChanged((user) => {
+  if (user) {
+    checkInviteUrl();
+  }
+});

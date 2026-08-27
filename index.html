@@ -89,8 +89,14 @@
       <!-- Formulário para Adicionar Amigos -->
       <section class="drawer-section">
         <h4>Adicionar Amigo</h4>
+        
+        <!-- Botão de Envio de Convite por Link -->
+        <button id="btn-share-invite" class="btn-secondary" style="width: 100%; margin-bottom: 15px; background-color: #25D366; color: white; border: none; font-weight: bold;">
+          🔗 Enviar Convite (WhatsApp / SMS / E-mail)
+        </button>
+
         <form id="add-friend-form">
-          <label for="friend-search-type">Buscar por:</label>
+          <label for="friend-search-type">Ou busque por:</label>
           <select id="friend-search-type">
             <option value="email">E-mail</option>
             <option value="phone">Telefone</option>
@@ -111,7 +117,7 @@
           />
 
           <button type="submit" class="btn-primary" style="width: 100%; margin-top: 8px;">
-            Enviar Solicitação
+            Enviar Solicitação Direta
           </button>
         </form>
       </section>
