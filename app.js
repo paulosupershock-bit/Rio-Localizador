@@ -224,9 +224,11 @@ if (addFriendForm) {
       if (!targetEmail) return;
       queryRef = database.ref('users').orderByChild('email').equalTo(targetEmail);
     } else {
-      const targetPhone = friendPhoneInput.value.replace(/\D/g, ""); // Limpa caracteres não numéricos
-      if (!targetPhone) {
-        alert("Digite um número de telefone válido.");
+      // Extrai apenas os números digitados
+      const targetPhone = friendPhoneInput.value.replace(/\D/g, ""); 
+      
+      if (!targetPhone || targetPhone.length < 10) {
+        alert("Digite um número de telefone válido com DDD (ex: 21999998888).");
         return;
       }
       queryRef = database.ref('users').orderByChild('phone').equalTo(targetPhone);
@@ -235,7 +237,11 @@ if (addFriendForm) {
     // Buscar usuário no Firebase
     queryRef.once('value', (snapshot) => {
       if (!snapshot.exists()) {
-        alert("Usuário não encontrado.");
+        if (searchType === "phone") {
+          alert("Usuário não encontrado. Certifique-se de que o contato já se cadastrou e inseriu o telefone no perfil.");
+        } else {
+          alert("Usuário não encontrado com este e-mail.");
+        }
         return;
       }
 
