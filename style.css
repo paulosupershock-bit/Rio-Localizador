@@ -2,93 +2,106 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-html, body {
+body, html {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: #f0f2f5;
 }
 
+/* --- Telas Principais --- */
 .screen {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
 }
 
 .hidden {
   display: none !important;
 }
 
-/* --- Tela de Login --- */
+/* --- Tela de Autenticação --- */
 #auth-screen {
-  align-items: center;
+  display: flex;
   justify-content: center;
-  padding: 20px;
+  align-items: center;
   background: linear-gradient(135deg, #0052d4, #4364f7, #6fb1fc);
 }
 
-.auth-box {
-  background: #ffffff;
-  padding: 30px;
+.auth-card {
+  background: white;
+  padding: 32px;
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
   width: 100%;
   max-width: 400px;
   text-align: center;
 }
 
-.auth-box h2 {
-  color: #1a1a1a;
+.auth-card h2 {
+  color: #0052d4;
   margin-bottom: 8px;
 }
 
-.auth-box p {
+.auth-card p {
   color: #666;
-  font-size: 14px;
   margin-bottom: 24px;
+  font-size: 14px;
 }
 
-.auth-box input {
-  width: 100%;
+.auth-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-card input {
   padding: 12px;
-  margin-bottom: 12px;
-  border: 1px solid #ddd;
+  border: 1px solid #ccc;
   border-radius: 6px;
-  font-size: 16px;
+  font-size: 14px;
 }
 
-.auth-box button {
-  width: 100%;
+.auth-card button {
   padding: 12px;
   border: none;
   border-radius: 6px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
   background-color: #0052d4;
   color: white;
-  margin-bottom: 8px;
+  font-weight: bold;
+  cursor: pointer;
   transition: background 0.2s;
 }
 
-.auth-box button:hover {
+.auth-card button:hover {
   background-color: #003db3;
 }
 
-.auth-box .btn-secondary {
-  background-color: #e4e6eb;
-  color: #050505;
+.auth-card .btn-secondary {
+  background-color: #e0e0e0;
+  color: #333;
 }
 
-.auth-box .btn-secondary:hover {
-  background-color: #d8dadf;
+.auth-card .btn-secondary:hover {
+  background-color: #d0d0d0;
+}
+
+.error-msg {
+  color: #d32f2f;
+  margin-top: 12px;
+  font-size: 12px;
 }
 
 /* --- Tela do Mapa --- */
+#map-screen {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .app-header {
   height: 56px;
   background-color: #0052d4;
@@ -99,18 +112,10 @@ html, body {
   padding: 0 16px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   z-index: 1000;
+  flex-shrink: 0;
 }
 
-
-#map-screen {
-  position: relative;
-  height: 100vh;
-  width: 100vw;
-  display: flex; /* Importante para o header e mapa ficarem empilhados */
-  flex-direction: column;
-}
-
-.app-header button {
+.btn-logout {
   background: transparent;
   border: 1px solid white;
   color: white;
@@ -119,219 +124,117 @@ html, body {
   cursor: pointer;
 }
 
+.btn-logout:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Container do Mapa */
 #map {
-  #map {
   flex: 1;
   width: 100%;
   height: 100%;
-  min-height: 400px; /* Garante altura mínima */
   z-index: 1;
 }
 
-.app-controls {
+/* Painel Lateral de Amigos */
+.friends-panel {
   position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 72px;
+  left: 16px;
+  width: 300px;
+  max-height: calc(100vh - 100px);
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   z-index: 1000;
-}
-
-#btn-recenter {
-  padding: 12px 20px;
-  background-color: #ffffff;
-  color: #0052d4;
-  border: none;
-  border-radius: 25px;
-  font-weight: bold;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-  cursor: pointer;
-}
-
-/* --- Estilos do Drawer / Menu Lateral --- */
-.icon-btn {
-  background: transparent;
-  border: none;
-  color: white;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 0 8px;
-}
-
-.drawer-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 1050;
-  transition: opacity 0.3s ease;
-}
-
-.drawer {
-  position: absolute;
-  top: 0;
-  left: -300px; /* Esconde o menu fora da tela */
-  width: 280px;
-  height: 100%;
-  background-color: #ffffff;
-  z-index: 1100;
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Classe ativada via JavaScript para abrir o menu */
-.drawer.open {
-  left: 0;
-}
-
-.drawer-header {
-  height: 56px;
-  background-color: #0052d4;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-}
-
-.drawer-header h2 {
-  font-size: 16px;
-}
-
-.close-btn {
-  background: transparent;
-  border: none;
-  color: white;
-  font-size: 24px;
-  cursor: pointer;
-}
-
-.drawer-content {
-  flex: 1;
-  overflow-y: auto;
   padding: 16px;
+  overflow-y: auto;
 }
 
-.drawer-section {
-  margin-bottom: 24px;
-}
-
-.drawer-section h3 {
-  font-size: 14px;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.friends-panel h3 {
   margin-bottom: 12px;
-}
-
-.drawer-section input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  margin-bottom: 8px;
-  font-size: 14px;
-}
-
-.drawer-section button {
-  width: 100%;
-  padding: 10px;
-  background-color: #0052d4;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-/* Itens de Solicitações Pendentes */
-.pending-request-item {
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  padding: 10px;
-  border-radius: 6px;
-  margin-bottom: 8px;
-  font-size: 13px;
-}
-
-.pending-request-item button {
-  padding: 6px 10px;
-  margin-top: 6px;
-  margin-right: 4px;
-  width: auto;
-}
-
-.btn-danger {
-  background-color: #d32f2f !important;
-}
-
-.btn-history {
-  background-color: #4364f7 !important;
-  margin-top: 12px;
-}
-
-.btn-google {
-  background-color: #4285F4;
-  color: white;
-  border: none;
-  margin-top: 10px;
-}
-.btn-google:hover {
-  background-color: #3367D6;
-}
-
-/* Estilização da Lista de Amigos e Horários */
-.friend-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px;
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 6px;
-  margin-bottom: 8px;
-}
-
-.friend-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.friend-info strong {
-  font-size: 13px;
   color: #333;
 }
 
-.time-status {
-  font-size: 11px;
+.add-friend-box {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
-.time-status.online {
-  color: #2e7d32; /* Verde */
+.add-friend-box input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
 }
 
-.time-status.outdated {
-  color: #c62828; /* Vermelho alerta */
+.add-friend-box button {
+  padding: 8px 12px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
   font-weight: bold;
 }
 
-.btn-history-small {
-  padding: 6px 10px !important;
-  font-size: 11px !important;
-  width: auto !important;
-  background-color: #0052d4 !important;
+.friends-list {
+  list-style: none;
+}
+
+.friends-list li {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.friends-list li button {
+  padding: 4px 8px;
+  font-size: 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 .btn-accept {
-  background-color: #2e7d32 !important;
+  background-color: #28a745;
+  color: white;
 }
 
-.pending-request-item div {
+.btn-track {
+  background-color: #0052d4;
+  color: white;
+}
+
+/* Controles Flutuantes do Mapa */
+.map-controls {
+  position: absolute;
+  bottom: 24px;
+  right: 16px;
   display: flex;
-  gap: 6px;
-  margin-top: 6px;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+}
+
+.map-controls button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-controls button:hover {
+  background: #f0f0f0;
 }
