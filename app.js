@@ -1,70 +1,36 @@
 // Configuração do Firebase
-
 const firebaseConfig = {
-
   apiKey: "AIzaSyBNkf6_wsmi3lH53oZyY50YDWt7mCAdwzk",
-
   authDomain: "riolocalizador.firebaseapp.com",
-
   databaseURL: "https://riolocalizador-default-rtdb.firebaseio.com",
-
   projectId: "riolocalizador",
-
   storageBucket: "riolocalizador.firebasestorage.app",
-
   messagingSenderId: "698167641664",
-
   appId: "1:698167641664:web:fd4d41f8c221a460e401a5"
-
 };
 
-
-
-// Inicializa o Firebase — SÓ UMA VEZ! SEM LINHAS DE IMPORT!
-
+// Inicializa o Firebase — SÓ UMA VEZ!
 firebase.initializeApp(firebaseConfig);
-
 const auth = firebase.auth();
-
 const database = firebase.database();
 
-
-
-// --- O RESTO DO SEU CÓDIGO CONTINUA IGUAL ABAIXO ---
-
 // Variáveis Globais
-
 let map = null;
-
 let userMarker = null;
-
 let watchId = null;
-
 let lastSavedPosition = null;
-
+let currentPolyline = null;
 const otherMarkers = {};
 
-
-
 // Elementos da DOM
-
 const authScreen = document.getElementById("auth-screen");
-
 const mapScreen = document.getElementById("map-screen");
-
 const loginForm = document.getElementById("login-form");
-
 const emailInput = document.getElementById("email");
-
 const passwordInput = document.getElementById("password");
-
 const btnRegister = document.getElementById("btn-register");
-
 const btnLogout = document.getElementById("btn-logout");
-
 const btnRecenter = document.getElementById("btn-recenter");
-
-
 
 // --- CONTROLE DO MENU LATERAL ---
 const btnOpenDrawer = document.getElementById("btn-open-drawer");
@@ -73,13 +39,13 @@ const drawer = document.getElementById("drawer");
 const overlay = document.getElementById("drawer-overlay");
 
 function openDrawer() {
-  drawer.classList.add("open"); // Adiciona 'open' para o menu deslizar na tela
-  overlay.classList.remove("hidden"); // Exibe a camada de fundo escura
+  drawer.classList.add("open");
+  overlay.classList.remove("hidden");
 }
 
 function closeDrawer() {
-  drawer.classList.remove("open"); // Esconde o menu novamente à esquerda
-  overlay.classList.add("hidden"); // Esconde a camada escura
+  drawer.classList.remove("open");
+  overlay.classList.add("hidden");
 }
 
 btnOpenDrawer.addEventListener("click", openDrawer);
@@ -93,151 +59,87 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-
 // Autenticação: Login
-
 loginForm.addEventListener("submit", (e) => {
-
   e.preventDefault();
-
   const email = emailInput.value;
-
   const password = passwordInput.value;
-
-
 
   auth.signInWithEmailAndPassword(email, password)
-
     .catch((error) => alert("Erro ao entrar: " + error.message));
-
 });
-
-
 
 // Autenticação: Cadastro
-
 btnRegister.addEventListener("click", () => {
-
   const email = emailInput.value;
-
   const password = passwordInput.value;
 
-
-
   if (!email || !password) {
-
     alert("Preencha e-mail e senha para cadastrar.");
-
     return;
-
   }
-
-
 
   auth.createUserWithEmailAndPassword(email, password)
-
     .then(() => alert("Conta criada com sucesso!"))
-
     .catch((error) => alert("Erro ao cadastrar: " + error.message));
-
 });
-
-
 
 // Autenticação: Logout
-
 btnLogout.addEventListener("click", () => {
-
   auth.signOut();
-
 });
-
-
 
 // Observador do Estado de Autenticação
-
 auth.onAuthStateChanged((user) => {
-
   if (user) {
-
     authScreen.classList.add("hidden");
-
     mapScreen.classList.remove("hidden");
-
     initMap();
-
     startLocationTracking(user.uid);
-
     listenToOtherLocations();
-
   } else {
-
     if (watchId) navigator.geolocation.clearWatch(watchId);
-
     authScreen.classList.remove("hidden");
-
     mapScreen.classList.add("hidden");
-
   }
-
 });
-
-
 
 // --- Funções do Mapa e Geolocalização ---
 
-
-
 function initMap() {
-
   if (map) return; // Evita recriar o mapa se já existir
 
-
-
   // Coordenadas padrão do Rio de Janeiro
-
   const rioCoords = [-22.9068, -43.1729];
-
   
-
   map = L.map('map').setView(rioCoords, 13);
 
-
-
   // Adiciona a camada de mapa do OpenStreetMap
-
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-
     maxZoom: 19,
-
     attribution: '© OpenStreetMap'
-
   }).addTo(map);
 
-
-
- btnRecenter.addEventListener("click", () => {
-  if (userMarker) {
-    // Se o marcador do usuário já existe, foca nele
-    const position = userMarker.getLatLng();
-    map.setView(position, 16);
-    userMarker.openPopup();
-  } else {
-    // Caso o GPS ainda esteja obtendo o primeiro sinal
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        map.setView([latitude, longitude], 16);
-      },
-      (error) => {
-        alert("Não foi possível obter sua localização atual. Verifique se o GPS está ativado.");
-      },
-      { enableHighAccuracy: true }
-    );
-  }
-});
-
-
+  // Ação do Botão Recenter
+  btnRecenter.addEventListener("click", () => {
+    if (userMarker) {
+      const position = userMarker.getLatLng();
+      map.setView(position, 16);
+      userMarker.openPopup();
+    } else {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          map.setView([latitude, longitude], 16);
+        },
+        (error) => {
+          alert("Não foi possível obter sua localização atual. Verifique se o GPS está ativado.");
+        },
+        { enableHighAccuracy: true }
+      );
+    }
+  });
+} // <--- AQUI ESTAVA O ERRO DE FECHAMENTO QUE FALTAVA
 
 function startLocationTracking(uid) {
   watchId = navigator.geolocation.watchPosition(
@@ -247,7 +149,9 @@ function startLocationTracking(uid) {
 
       // --- 1. Atualiza/Cria o marcador do PRÓPRIO usuário ---
       if (!userMarker) {
-        userMarker = L.marker(latLng).addTo(map).bindPopup("<b>Você</b>");
+        userMarker = L.marker(latLng).addTo(map).bindPopup("<b>Sua localização</b>");
+        // Centraliza o mapa automaticamente no primeiro sinal de GPS que chegar
+        map.setView(latLng, 16);
       } else {
         userMarker.setLatLng(latLng);
       }
@@ -256,6 +160,8 @@ function startLocationTracking(uid) {
       database.ref('locations/' + uid).set({
         latitude: latitude,
         longitude: longitude,
+        email: auth.currentUser ? auth.currentUser.email : '',
+        displayName: auth.currentUser ? auth.currentUser.displayName : '',
         timestamp: firebase.database.ServerValue.TIMESTAMP
       });
 
@@ -263,10 +169,8 @@ function startLocationTracking(uid) {
       let shouldSaveHistory = false;
 
       if (!lastSavedPosition) {
-        // Primeiro ponto do dia: sempre salva
         shouldSaveHistory = true;
       } else {
-        // Calcula a distância entre a posição atual e a última salva
         const distanceMoved = calculateDistance(
           lastSavedPosition.lat, 
           lastSavedPosition.lng, 
@@ -274,7 +178,6 @@ function startLocationTracking(uid) {
           longitude
         );
 
-        // Só grava se andou mais de 15 metros
         if (distanceMoved >= 15) {
           shouldSaveHistory = true;
         }
@@ -287,7 +190,6 @@ function startLocationTracking(uid) {
           timestamp: firebase.database.ServerValue.TIMESTAMP
         });
 
-        // Atualiza a referência do último ponto salvo
         lastSavedPosition = { lat: latitude, lng: longitude };
       }
     },
@@ -299,21 +201,16 @@ function startLocationTracking(uid) {
 function listenToOtherLocations() {
   const locationsRef = database.ref('locations');
 
-  // Quando um amigo entra/conecta
   locationsRef.on('child_added', (snapshot) => {
     const data = snapshot.val();
     updateOtherUserMarker(snapshot.key, data);
-    if (data) checkProximityAlert(snapshot.key, data.latitude, data.longitude);
   });
 
-  // Quando a localização de um amigo muda (SEU NOVO TRECHO AQUI)
   locationsRef.on('child_changed', (snapshot) => {
     const data = snapshot.val();
     updateOtherUserMarker(snapshot.key, data);
-    if (data) checkProximityAlert(snapshot.key, data.latitude, data.longitude);
   });
 
-  // Quando um amigo se desconecta/remove a localização
   locationsRef.on('child_removed', (snapshot) => {
     const uid = snapshot.key;
     if (otherMarkers[uid]) {
@@ -323,17 +220,14 @@ function listenToOtherLocations() {
   });
 }
 
-
 function updateOtherUserMarker(uid, data) {
   const currentUserId = auth.currentUser ? auth.currentUser.uid : null;
   if (uid === currentUserId || !data) return; // Ignora o próprio usuário
 
   const latLng = [data.latitude, data.longitude];
-  
-  // Nome a ser exibido (pode vir de data.displayName, data.email ou fallback pro UID curto)
   const displayName = data.displayName || data.email || `Usuário (${uid.substring(0, 5)}...)`;
 
-  // Define um ícone vermelho para diferenciar dos seus marcadores
+  // Ícone vermelho para diferenciação visual dos amigos
   const friendIcon = L.icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -344,257 +238,120 @@ function updateOtherUserMarker(uid, data) {
   });
 
   if (!otherMarkers[uid]) {
-    // Cria o marcador com ícone personalizado e popup formatado
     otherMarkers[uid] = L.marker(latLng, { icon: friendIcon })
       .addTo(map)
       .bindPopup(`<b>${displayName}</b><br>Em movimento`);
   } else {
-    // Atualiza a posição suavemente sem recriar o marcador
     otherMarkers[uid].setLatLng(latLng);
   }
 
-  // Opcional: dispara alerta de proximidade se o usuário estiver por perto
+  // Alerta de proximidade em tempo real
   checkProximityAlert(uid, data.latitude, data.longitude);
 }
 
-
-
-// Calcula distância entre dois pontos em metros
-
+// Calcula distância entre dois pontos em metros (Fórmula de Haversine)
 function calculateDistance(lat1, lon1, lat2, lon2) {
-
   const R = 6371e3; // Raio da Terra em metros
-
   const φ1 = lat1 * Math.PI / 180;
-
   const φ2 = lat2 * Math.PI / 180;
-
   const Δφ = (lat2 - lat1) * Math.PI / 180;
-
   const Δλ = (lon2 - lon1) * Math.PI / 180;
 
-
-
   const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-
           Math.cos(φ1) * Math.cos(φ2) *
-
           Math.sin(Δλ/2) * Math.sin(Δλ/2);
-
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
-
-
-  return R * c; // Distância em metros
-
+  return R * c;
 }
-
-
-
-// Chame esta verificação sempre que a posição de um amigo for atualizada:
 
 function checkProximityAlert(friendUid, friendLat, friendLng) {
-
   if (!userMarker) return;
-
   const myPos = userMarker.getLatLng();
-
   
-
   const distance = calculateDistance(myPos.lat, myPos.lng, friendLat, friendLng);
-
-  const ALARM_RADIUS_METERS = 500; // Raio configurável
-
-
+  const ALARM_RADIUS_METERS = 500;
 
   if (distance <= ALARM_RADIUS_METERS) {
-
-    // Solicita permissão de notificação nativa do navegador/Android se necessário
-
     if (Notification.permission === "granted") {
-
       new Notification("Amigo Próximo!", {
-
         body: `Um amigo está a apenas ${Math.round(distance)}m de você.`,
-
         icon: "/icon.png"
-
       });
-
     } else {
-
       alert(`⚠️ Amigo Próximo! Um amigo está a ${Math.round(distance)}m de você.`);
-
     }
-
   }
-
 }
-
-
 
 // Aceitar solicitação de amizade
-
 function acceptFriendRequest(friendUid) {
-
   const currentUid = auth.currentUser.uid;
 
-
-
-  // Atualiza em ambas as pontas para amizade mútua
-
   const updates = {};
-
   updates[`/friendships/${currentUid}/${friendUid}`] = 'accepted';
-
   updates[`/friendships/${friendUid}/${currentUid}`] = 'accepted';
 
-
-
   database.ref().update(updates)
-
     .then(() => alert("Solicitação aceita!"))
-
     .catch((err) => alert("Erro ao aceitar: " + err.message));
-
 }
-
-
 
 // Recusar ou cancelar solicitação
-
 function rejectFriendRequest(friendUid) {
-
   const currentUid = auth.currentUser.uid;
 
-
-
   const updates = {};
-
   updates[`/friendships/${currentUid}/${friendUid}`] = null;
-
   updates[`/friendships/${friendUid}/${currentUid}`] = null;
 
-
-
   database.ref().update(updates)
-
     .then(() => alert("Solicitação removida."))
-
     .catch((err) => alert("Erro ao recusar: " + err.message));
-
 }
-
-
-
-
-
-let currentPolyline = null;
-
-
 
 function drawUserHistory(targetUid) {
-
   const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
 
-
-
-  // Busca pontos a partir de 30 dias atrás
-
   database.ref(`location_history/${targetUid}`)
-
     .orderByChild('timestamp')
-
     .startAt(thirtyDaysAgo)
-
     .once('value', (snapshot) => {
-
       const latLngs = [];
 
-
-
       snapshot.forEach((child) => {
-
         const val = child.val();
-
         latLngs.push([val.latitude, val.longitude]);
-
       });
 
-
-
-      // Remove linha anterior se já existir no mapa
-
       if (currentPolyline) {
-
         map.removeLayer(currentPolyline);
-
       }
-
-
-
-      // Desenha a linha do trajeto no mapa (cor azul)
 
       if (latLngs.length > 0) {
-
         currentPolyline = L.polyline(latLngs, { color: '#0052d4', weight: 4, opacity: 0.7 }).addTo(map);
-
-        map.fitBounds(currentPolyline.getBounds()); // Ajusta o zoom para cobrir o trajeto
-
+        map.fitBounds(currentPolyline.getBounds());
       } else {
-
         alert("Nenhum trajeto encontrado nos últimos 30 dias.");
-
       }
-
     });
-
 }
 
-
-
 // --- ENTRAR COM CONTA DO GOOGLE ---
-
-
-
-// Cria o provedor do Google
-
 const googleProvider = new firebase.auth.GoogleAuthProvider();
-
-
-
-// Pega o botão
-
 const btnGoogleLogin = document.getElementById("btn-google-login");
 
-
-
-// Ação ao clicar no botão
-
-btnGoogleLogin.addEventListener("click", () => {
-
-  auth.signInWithPopup(googleProvider)
-
-    .then((result) => {
-
-      // Login bem-sucedido
-
-      const user = result.user;
-
-      alert("Login com Google bem-sucedido! Bem-vindo, " + user.displayName);
-
-    })
-
-    .catch((error) => {
-
-      // Se o usuário fechou a janela ou deu erro
-
-      if (error.code !== "auth/popup-closed-by-user") {
-
-        alert("Erro ao entrar com Google: " + error.message);
-
-      }
-
+if (btnGoogleLogin) {
+  btnGoogleLogin.addEventListener("click", () => {
+    auth.signInWithPopup(googleProvider)
+      .then((result) => {
+        const user = result.user;
+        alert("Login com Google bem-sucedido! Bem-vindo, " + user.displayName);
+      })
+      .catch((error) => {
+        if (error.code !== "auth/popup-closed-by-user") {
+          alert("Erro ao entrar com Google: " + error.message);
+        }
+      });
   });
-
-}); 
+}
