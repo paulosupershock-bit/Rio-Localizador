@@ -441,6 +441,29 @@ function drawUserHistory(targetUid, title) {
         }
       });
 
+// --- COMPARTILHAMENTO E CONVITE VIA WHATSAPP ---
+const btnShareWhatsapp = document.getElementById("btn-share-whatsapp");
+
+if (btnShareWhatsapp) {
+  btnShareWhatsapp.addEventListener("click", () => {
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Você precisa estar logado para enviar convites.");
+      return;
+    }
+
+    // Mensagem amigável com o e-mail de quem está convidando
+    const userEmail = user.email;
+    const message = `Olá! Estou usando o Rio Localizador para compartilhar minha localização no mapa.\n\nAdicione meu e-mail no aplicativo para me acompanhar: *${userEmail}*\n\nAcesse o app aqui: ${window.location.href}`;
+
+    // Cria o link seguro do WhatsApp
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+
+    // Abre o WhatsApp no navegador ou app mobile
+    window.open(whatsappUrl, "_blank");
+  });
+}
+
       if (currentPolyline) {
         map.removeLayer(currentPolyline);
       }
