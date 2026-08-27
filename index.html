@@ -19,20 +19,25 @@
 <body>
 
   <!-- TELA DE AUTENTICAÇÃO -->
-  <div id="auth-screen" class="auth-container">
-    <div class="auth-box">
-      <h1>Rio Localizador</h1>
-      <p>Compartilhe sua localização em tempo real</p>
-
-      <form id="login-form">
-        <input type="email" id="email" placeholder="E-mail" required />
-        <input type="password" id="password" placeholder="Senha" required />
-        
-        <div class="auth-buttons">
-          <button type="submit" id="btn-login" class="btn-primary">Entrar</button>
-          <button type="button" id="btn-register" class="btn-secondary">Cadastrar</button>
-        </div>
-      </form>
+  <div id="auth-screen">
+  <div class="auth-box">
+    <h1>Rio Localizador</h1>
+    <p>Compartilhe sua localização em tempo real</p>
+    
+    <form id="login-form">
+      <input type="email" id="email" placeholder="E-mail" required />
+      <input type="password" id="password" placeholder="Senha" required />
+      <button type="submit">Entrar</button>
+    </form>
+    
+    <button type="button" id="btn-register" class="btn-secondary">Cadastrar</button>
+    <button type="button" id="btn-forgot-password" class="btn-link">Esqueceu a senha?</button>
+    
+    <div class="divider">ou</div>
+    
+    <button type="button" id="btn-google-login" class="btn-google">Entrar com Google</button>
+  </div>
+</div>
 
       <button id="btn-forgot-password" class="btn-link">Esqueceu a senha?</button>
 
