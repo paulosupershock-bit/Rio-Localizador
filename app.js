@@ -332,52 +332,89 @@ function rejectFriendRequest(friendUid) {
     .catch((err) => alert("Erro ao recusar: " + err.message));
 }
 
-// --- HISTÓRICO DE TRAJETOS DE 30 DIAS ---
+// --- HISTÓRICO DE TRAJETOS DE 30 DIAS (VERSÃO CORRIGIDA) ---
 btnToggleHistory.addEventListener("click", () => {
   if (auth.currentUser) {
     drawUserHistory(auth.currentUser.uid);
+  } else {
+    alert("Usuário não autenticado.");
   }
 });
 
 function drawUserHistory(targetUid) {
-  // Define o limite de tempo (30 dias atrás em milissegundos)
+  console.log("Iniciando busca de histórico para o UID:", targetUid);
+  
+  // 30 dias atrás em ms
   const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
 
-  database.ref(`location_history/${targetUid}`).once('value', (snapshot) => {
-    if (!snapshot.exists()) {
-      alert("Nenhum histórico encontrado para este usuário.");
-      return;
-    }
+  database.ref(`location_history/${targetUid}`).once('value')
+    .then((snapshot) => {
+      console.log("Resposta do Firebase recebida. Existe dados?", snapshot.exists());
 
-    const latLngs = [];
-
-    snapshot.forEach((child) => {
-      const val = child.val();
-      // Filtra os registros que possuem timestamp dentro dos últimos 30 dias
-      if (val.latitude && val.longitude && val.timestamp && val.timestamp >= thirtyDaysAgo) {
-        latLngs.push([val.latitude, val.longitude]);
+      if (!snapshot.exists()) {
+        alert("Nenhum histórico registrado no banco de dados para este usuário.");
+        return;
       }
+
+      const latLngs = [];
+
+      snapshot.forEach((child) => {
+        const val = child.val();
+        
+        // Validação estrita das coordenadas e da data
+        if (
+          val &&
+          typeof val.latitude === 'number' &&
+          typeof val.longitude === 'number' &&
+          val.timestamp &&
+          val.timestamp >= thirtyDaysAgo
+        ) {
+          latLngs.push([val.latitude, val.longitude]);
+        }
+      });
+
+      console.log(`Pontos encontrados nos últimos 30 dias: ${latLngs.length}`);
+
+      // Limpa polyline antiga se existir
+      if (currentPolyline) {
+        map.removeLayer(currentPolyline);
+        currentPolyline = null;
+      }
+
+      if (latLngs.length === 0) {
+        alert("Nenhum ponto registrado nos últimos 30 dias (verifique se o GPS esteve ativo).");
+        return;
+      }
+
+      // Caso haja apenas 1 ponto, fitBounds() falha no Leaflet. Centralizamos o mapa diretamente nele.
+      if (latLngs.length === 1) {
+        map.setView(latLngs[0], 16);
+        L.popup()
+          .setLatLng(latLngs[0])
+          .setContent("<b>Único ponto registrado nos últimos 30 dias</b>")
+          .openOn(map);
+      } else {
+        // Desenha a rota com mais de 1 ponto
+        currentPolyline = L.polyline(latLngs, {
+          color: '#0052d4',
+          weight: 5,
+          opacity: 0.85,
+          smoothFactor: 1
+        }).addTo(map);
+
+        // Enquadra o mapa para caber toda a linha
+        map.fitBounds(currentPolyline.getBounds(), { padding: [50, 50] });
+      }
+
+      // Tenta fechar o drawer se a função existir
+      if (typeof closeDrawer === 'function') {
+        closeDrawer();
+      }
+    })
+    .catch((error) => {
+      console.error("Erro crítico ao buscar histórico no Firebase:", error);
+      alert("Erro de permissão ou rede ao buscar histórico: " + error.message);
     });
-
-    // Limpa a rota anterior se já existir uma no mapa
-    if (currentPolyline) {
-      map.removeLayer(currentPolyline);
-    }
-
-    if (latLngs.length > 0) {
-      // Desenha a linha azul do trajeto
-      currentPolyline = L.polyline(latLngs, { color: '#0052d4', weight: 4, opacity: 0.8 }).addTo(map);
-      
-      // Enquadra o mapa para mostrar toda a rota desenhada
-      map.fitBounds(currentPolyline.getBounds(), { padding: [30, 30] });
-      closeDrawer();
-    } else {
-      alert("Nenhum trajeto registrado nos últimos 30 dias.");
-    }
-  }, (error) => {
-    console.error("Erro ao carregar histórico: ", error);
-    alert("Erro ao buscar histórico: " + error.message);
-  });
 }
 
 // --- ENTRAR COM CONTA DO GOOGLE ---
