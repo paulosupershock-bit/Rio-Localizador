@@ -101,15 +101,13 @@ html, body {
   z-index: 1000;
 }
 
+
 #map-screen {
   position: relative;
   height: 100vh;
   width: 100vw;
   display: flex; /* Importante para o header e mapa ficarem empilhados */
   flex-direction: column;
-}
-.app-header h1 {
-  font-size: 18px;
 }
 
 .app-header button {
@@ -122,9 +120,11 @@ html, body {
 }
 
 #map {
+  #map {
   flex: 1;
   width: 100%;
-  height: 100%; /* Adicionado para garantir o cálculo de altura */
+  height: 100%;
+  min-height: 400px; /* Garante altura mínima */
   z-index: 1;
 }
 

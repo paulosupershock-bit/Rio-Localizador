@@ -132,11 +132,14 @@ auth.onAuthStateChanged((user) => {
     mapScreen.classList.remove("hidden");
     initMap();
     
-    // Força o Leaflet a recalcular as dimensões após sair da tela oculta
+    // ✅ FORÇA o Leaflet a recalcular tamanho após a tela aparecer
     setTimeout(() => {
-      if (map) map.invalidateSize();
-    }, 200);
-
+      if (map) {
+        map.invalidateSize(true); // true = recalcular com animação suave
+        console.log("📐 Tamanho do mapa recalculado");
+      }
+    }, 300); // Tempo maior garante que o CSS já foi aplicado
+    
     startLocationTracking(user.uid);
     listenToFriendships(user.uid);
   } else {
@@ -148,14 +151,26 @@ auth.onAuthStateChanged((user) => {
 
 // Mapa Leaflet
 function initMap() {
-  if (map) return;
+  if (map) {
+    map.invalidateSize(true); // Se já existe, só recalcula tamanho
+    return;
+  }
   const rioCoords = [-22.9068, -43.1729];
   map = L.map('map').setView(rioCoords, 13);
-
+  
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '© OpenStreetMap'
   }).addTo(map);
+
+// Garante que o mapa se ajuste após carregar os blocos
+  map.whenReady(() => {
+    map.invalidateSize(true);
+    console.log("🗺️ Mapa pronto e carregado!");
+  });
+
+  // ... restante do código dos botões ...
+}
 
   if (btnRecenter) {
     btnRecenter.addEventListener("click", () => {
