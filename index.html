@@ -18,8 +18,8 @@
       <p>Acompanhe a localização dos seus amigos</p>
       
       <form id="auth-form">
-        <input type="email" id="email" placeholder="E-mail" required>
-        <input type="password" id="password" placeholder="Senha" required>
+        <input type="email" id="email" placeholder="E-mail" required autocomplete="username">
+        <input type="password" id="password" placeholder="Senha" required autocomplete="current-password">
         
         <button type="submit" id="btn-login">Entrar</button>
         <button type="button" id="btn-signup" class="btn-secondary">Criar Conta</button>
@@ -32,33 +32,42 @@
   <div id="map-screen" class="screen hidden">
     <!-- Barra Superior -->
     <header class="app-header">
-      <div class="user-info">
-        <span id="user-display-email"></span>
+      <div class="header-left">
+        <button id="btn-toggle-menu" class="btn-menu-toggle" title="Abrir/Fechar Menu">☰</button>
+        <span id="user-display-email" class="user-email-text"></span>
       </div>
       <button id="btn-logout" class="btn-logout">Sair</button>
     </header>
 
-    <!-- Área do Mapa -->
-    <div id="map"></div>
+    <!-- Área Principal (Mapa + Overlay) -->
+    <div class="main-container">
+      <!-- Painel Lateral de Amigos -->
+      <aside id="friends-panel" class="friends-panel">
+        <div class="panel-header">
+          <h3>Amigos</h3>
+          <button id="btn-close-panel" class="btn-close">✕</button>
+        </div>
+        
+        <!-- Adicionar Amigo -->
+        <div class="add-friend-box">
+          <input type="email" id="friend-email-input" placeholder="E-mail do amigo">
+          <button id="btn-add-friend">+</button>
+        </div>
+        
+        <!-- Lista de Solicitações Pendentes -->
+        <div class="section-title">Solicitações</div>
+        <ul id="requests-list" class="friends-list"></ul>
 
-    <!-- Painel Lateral de Amigos (Overlay) -->
-    <div class="friends-panel">
-      <h3>Amigos</h3>
-      
-      <!-- Adicionar Amigo -->
-      <div class="add-friend-box">
-        <input type="email" id="friend-email-input" placeholder="E-mail do amigo">
-        <button id="btn-add-friend">+</button>
-      </div>
-      
-      <!-- Lista de Solicitações Pendentes -->
-      <ul id="requests-list" class="friends-list"></ul>
+        <!-- Lista de Amigos Aceitos -->
+        <div class="section-title">Seus Amigos</div>
+        <ul id="friends-list" class="friends-list"></ul>
+      </aside>
 
-      <!-- Lista de Amigos Aceitos -->
-      <ul id="friends-list" class="friends-list"></ul>
+      <!-- Container do Mapa -->
+      <div id="map"></div>
     </div>
 
-    <!-- Controles Flutuantes -->
+    <!-- Controles Flutuantes do Mapa -->
     <div class="map-controls">
       <button id="btn-recenter" title="Centralizar em mim">🎯</button>
       <button id="btn-my-history" title="Meu Histórico do Dia">📜</button>

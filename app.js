@@ -1,5 +1,5 @@
 // --- Configuração do Firebase ---
-// // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBNkf6_wsmi3lH53oZyY50YDWt7mCAdwzk",
   authDomain: "riolocalizador.firebaseapp.com",
@@ -28,6 +28,10 @@ const btnLogout = document.getElementById("btn-logout");
 const authError = document.getElementById("auth-error");
 const userDisplayEmail = document.getElementById("user-display-email");
 
+const friendsPanel = document.getElementById("friends-panel");
+const btnToggleMenu = document.getElementById("btn-toggle-menu");
+const btnClosePanel = document.getElementById("btn-close-panel");
+
 const friendEmailInput = document.getElementById("friend-email-input");
 const btnAddFriend = document.getElementById("btn-add-friend");
 const requestsList = document.getElementById("requests-list");
@@ -43,51 +47,92 @@ let friendMarkers = {};
 let activePolyline = null;
 let watchId = null;
 
-// --- Gestão de Autenticação ---
-
-// Login
-btnLogin.addEventListener("click", (e) => {
-  e.preventDefault();
-  const email = emailInput.value;
-  const password = passwordInput.value;
-  
-  auth.signInWithEmailAndPassword(email, password)
-    .catch(error => authError.textContent = error.message);
+// --- Controle de Visibilidade do Menu Lateral ---
+btnToggleMenu.addEventListener("click", () => {
+  friendsPanel.classList.toggle("collapsed");
 });
 
-// Cadastro
+btnClosePanel.addEventListener("click", () => {
+  friendsPanel.classList.add("collapsed");
+});
+
+// --- Tratamento de Erros Amigável ---
+function handleAuthError(error) {
+  console.error("Erro de Autenticação:", error);
+  switch (error.code) {
+    case 'auth/user-not-found':
+      authError.textContent = "Usuário não encontrado. Crie uma conta antes de entrar.";
+      break;
+    case 'auth/wrong-password':
+      authError.textContent = "Senha incorreta. Verifique e tente novamente.";
+      break;
+    case 'auth/invalid-email':
+      authError.textContent = "Formato de e-mail inválido.";
+      break;
+    case 'auth/weak-password':
+      authError.textContent = "A senha deve ter pelo menos 6 caracteres.";
+      break;
+    case 'auth/email-already-in-use':
+      authError.textContent = "Este e-mail já está cadastrado. Clique em Entrar.";
+      break;
+    case 'auth/operation-not-allowed':
+      authError.textContent = "Erro: O método E-mail/Senha não está ativado no Firebase Console.";
+      break;
+    default:
+      authError.textContent = error.message;
+  }
+}
+
+// --- Gestão de Autenticação ---
+
+btnLogin.addEventListener("click", (e) => {
+  e.preventDefault();
+  authError.textContent = "";
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+
+  if (!email || !password) {
+    authError.textContent = "Preencha e-mail e senha.";
+    return;
+  }
+  
+  auth.signInWithEmailAndPassword(email, password)
+    .catch(handleAuthError);
+});
+
 btnSignup.addEventListener("click", (e) => {
   e.preventDefault();
-  const email = emailInput.value;
+  authError.textContent = "";
+  const email = emailInput.value.trim();
   const password = passwordInput.value;
+
+  if (!email || !password) {
+    authError.textContent = "Preencha e-mail e senha.";
+    return;
+  }
 
   auth.createUserWithEmailAndPassword(email, password)
     .then((userCredential) => {
-      // Cria registro na coleção de usuários
       return db.collection("users").doc(userCredential.user.uid).set({
         email: email,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     })
-    .catch(error => authError.textContent = error.message);
+    .catch(handleAuthError);
 });
 
-// Logout
 btnLogout.addEventListener("click", () => {
   auth.signOut();
 });
 
-// Estado de Autenticação (Ciclo de Vida)
 auth.onAuthStateChanged((user) => {
   if (user) {
     userDisplayEmail.textContent = user.email;
     authScreen.classList.add("hidden");
     mapScreen.classList.remove("hidden");
 
-    // Inicializa o mapa Leaflet
     initMap();
 
-    // Garante renderização perfeita ativando a reavaliação de tamanho após tornar visível
     requestAnimationFrame(() => {
       setTimeout(() => {
         if (map) {
@@ -110,7 +155,6 @@ auth.onAuthStateChanged((user) => {
 function initMap() {
   if (map) return;
 
-  // Posição inicial padrão (Rio de Janeiro)
   const defaultCoords = [-22.9068, -43.1729];
   map = L.map('map').setView(defaultCoords, 13);
 
@@ -150,7 +194,6 @@ function startLocationTracking(userId) {
       const lng = position.coords.longitude;
       const latLng = [lat, lng];
 
-      // Atualiza ou cria marcador do usuário
       if (!userMarker) {
         userMarker = L.marker(latLng).addTo(map).bindPopup("Você está aqui");
         map.setView(latLng, 15);
@@ -158,14 +201,12 @@ function startLocationTracking(userId) {
         userMarker.setLatLng(latLng);
       }
 
-      // Salva no Firestore
       db.collection("locations").doc(userId).set({
         latitude: lat,
         longitude: lng,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      // Salva histórico
       db.collection("locations").doc(userId).collection("history").add({
         latitude: lat,
         longitude: lng,
@@ -206,11 +247,11 @@ btnAddFriend.addEventListener("click", () => {
         alert("Solicitação enviada!");
         friendEmailInput.value = "";
       });
-    });
+    })
+    .catch(err => console.error("Erro ao adicionar amigo:", err));
 });
 
 function listenToFriendships(userId) {
-  // Solicitações Recebidas Pendentes
   db.collection("friendships")
     .where("receiverId", "==", userId)
     .where("status", "==", "pending")
@@ -234,7 +275,6 @@ function listenToFriendships(userId) {
       });
     });
 
-  // Amigos Aceitos (Enviados ou Recebidos)
   db.collection("friendships")
     .where("status", "==", "accepted")
     .onSnapshot(snapshot => {
@@ -260,7 +300,6 @@ function listenToFriendships(userId) {
             li.appendChild(btnTrack);
             friendsList.appendChild(li);
 
-            // Escuta localização do amigo em tempo real
             trackFriendLocation(friendId, friendData.email);
           });
         }
