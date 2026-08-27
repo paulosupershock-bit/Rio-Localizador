@@ -332,31 +332,52 @@ function rejectFriendRequest(friendUid) {
     .catch((err) => alert("Erro ao recusar: " + err.message));
 }
 
+// --- HISTÓRICO DE TRAJETOS DE 30 DIAS ---
+btnToggleHistory.addEventListener("click", () => {
+  if (auth.currentUser) {
+    drawUserHistory(auth.currentUser.uid);
+  }
+});
+
 function drawUserHistory(targetUid) {
+  // Define o limite de tempo (30 dias atrás em milissegundos)
   const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
 
-  database.ref(`location_history/${targetUid}`)
-    .orderByChild('timestamp')
-    .startAt(thirtyDaysAgo)
-    .once('value', (snapshot) => {
-      const latLngs = [];
+  database.ref(`location_history/${targetUid}`).once('value', (snapshot) => {
+    if (!snapshot.exists()) {
+      alert("Nenhum histórico encontrado para este usuário.");
+      return;
+    }
 
-      snapshot.forEach((child) => {
-        const val = child.val();
+    const latLngs = [];
+
+    snapshot.forEach((child) => {
+      const val = child.val();
+      // Filtra os registros que possuem timestamp dentro dos últimos 30 dias
+      if (val.latitude && val.longitude && val.timestamp && val.timestamp >= thirtyDaysAgo) {
         latLngs.push([val.latitude, val.longitude]);
-      });
-
-      if (currentPolyline) {
-        map.removeLayer(currentPolyline);
-      }
-
-      if (latLngs.length > 0) {
-        currentPolyline = L.polyline(latLngs, { color: '#0052d4', weight: 4, opacity: 0.7 }).addTo(map);
-        map.fitBounds(currentPolyline.getBounds());
-      } else {
-        alert("Nenhum trajeto encontrado nos últimos 30 dias.");
       }
     });
+
+    // Limpa a rota anterior se já existir uma no mapa
+    if (currentPolyline) {
+      map.removeLayer(currentPolyline);
+    }
+
+    if (latLngs.length > 0) {
+      // Desenha a linha azul do trajeto
+      currentPolyline = L.polyline(latLngs, { color: '#0052d4', weight: 4, opacity: 0.8 }).addTo(map);
+      
+      // Enquadra o mapa para mostrar toda a rota desenhada
+      map.fitBounds(currentPolyline.getBounds(), { padding: [30, 30] });
+      closeDrawer();
+    } else {
+      alert("Nenhum trajeto registrado nos últimos 30 dias.");
+    }
+  }, (error) => {
+    console.error("Erro ao carregar histórico: ", error);
+    alert("Erro ao buscar histórico: " + error.message);
+  });
 }
 
 // --- ENTRAR COM CONTA DO GOOGLE ---
