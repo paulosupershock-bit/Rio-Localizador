@@ -386,34 +386,68 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// 4. Trajeto dos últimos 30 dias no Mapa
-function drawUserHistory(targetUid, title) {
+// 4. Trajeto dos últimos 30 dias no Mapa (VERSÃO CORRIGIDA)
+function drawUserHistory(targetUid, title = "Trajeto") {
   const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
 
-  database.ref(`location_history/${targetUid}`)
-    .orderByChild('timestamp')
-    .startAt(thirtyDaysAgo)
-    .once('value', (snapshot) => {
+  // Leitura direta do nó do usuário sem forçar filtro por servidor (evita travamento por falta de índice)
+  database.ref(`location_history/${targetUid}`).once('value')
+    .then((snapshot) => {
+      if (!snapshot.exists()) {
+        alert(`Nenhum histórico registrado no banco para ${title}.`);
+        return;
+      }
+
       const latLngs = [];
 
       snapshot.forEach((child) => {
         const val = child.val();
-        if (val.latitude && val.longitude) {
+        
+        // Garante que as coordenadas e o timestamp são válidos
+        if (
+          val &&
+          typeof val.latitude === 'number' &&
+          typeof val.longitude === 'number' &&
+          val.timestamp &&
+          val.timestamp >= thirtyDaysAgo
+        ) {
           latLngs.push([val.latitude, val.longitude]);
         }
       });
 
+      // Remove trajeto anterior do mapa se existir
       if (currentPolyline) {
         map.removeLayer(currentPolyline);
+        currentPolyline = null;
       }
 
-      if (latLngs.length > 0) {
-        currentPolyline = L.polyline(latLngs, { color: '#0052d4', weight: 5, opacity: 0.8 }).addTo(map);
-        map.fitBounds(currentPolyline.getBounds());
-        closeDrawer();
-        alert(`Exibindo trajeto de ${title}`);
-      } else {
-        alert(`Nenhum trajeto registrado nos últimos 30 dias para ${title}.`);
+      if (latLngs.length === 0) {
+        alert(`Nenhum trajeto encontrado nos últimos 30 dias para ${title}.`);
+        return;
       }
+
+      // Tratamento para 1 único ponto (evita erro no Leaflet)
+      if (latLngs.length === 1) {
+        map.setView(latLngs[0], 16);
+        L.popup()
+          .setLatLng(latLngs[0])
+          .setContent(`<b>Único ponto registrado de ${title}</b>`)
+          .openOn(map);
+      } else {
+        // Desenha a linha da rota para 2 ou mais pontos
+        currentPolyline = L.polyline(latLngs, { 
+          color: '#0052d4', 
+          weight: 5, 
+          opacity: 0.8 
+        }).addTo(map);
+
+        map.fitBounds(currentPolyline.getBounds(), { padding: [40, 40] });
+      }
+
+      closeDrawer();
+    })
+    .catch((error) => {
+      console.error("Erro ao carregar histórico:", error);
+      alert("Erro ao buscar histórico: " + error.message);
     });
 }
