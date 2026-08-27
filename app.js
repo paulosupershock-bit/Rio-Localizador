@@ -79,15 +79,15 @@ loginForm.addEventListener("submit", (e) => {
     .catch((error) => alert("Erro ao entrar: " + error.message));
 });
 
-// Cadastro de Usuário (salvando e-mail e telefone)
+// Cadastro de Usuário com Telefone Internacional
 btnRegister.addEventListener("click", () => {
   if (!emailInput.value || !passwordInput.value) {
     alert("Preencha e-mail e senha para cadastrar.");
     return;
   }
   
-  const phone = prompt("Digite seu número de telefone com DDD (somente números, ex: 21999998888):") || "";
-  const cleanedPhone = phone.replace(/\D/g, "");
+  const phone = prompt("Digite seu telefone com DDI + DDD + Número (ex: 5521999998888 ou +55 21 99999-8888):") || "";
+  const cleanedPhone = phone.replace(/\D/g, ""); // Mantém apenas os números
 
   auth.createUserWithEmailAndPassword(emailInput.value, passwordInput.value)
     .then((cred) => {
@@ -211,7 +211,7 @@ if (friendSearchType) {
   });
 }
 
-// Enviar Solicitação de Amizade (E-mail ou Telefone)
+// Enviar Solicitação de Amizade (E-mail ou Telefone Livre)
 if (addFriendForm) {
   addFriendForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -224,11 +224,11 @@ if (addFriendForm) {
       if (!targetEmail) return;
       queryRef = database.ref('users').orderByChild('email').equalTo(targetEmail);
     } else {
-      // Extrai apenas os números digitados
+      // Remove qualquer caractere não numérico (+, -, (), espaços)
       const targetPhone = friendPhoneInput.value.replace(/\D/g, ""); 
       
-      if (!targetPhone || targetPhone.length < 10) {
-        alert("Digite um número de telefone válido com DDD (ex: 21999998888).");
+      if (!targetPhone || targetPhone.length < 8) {
+        alert("Digite um número de telefone válido (com DDI e DDD).");
         return;
       }
       queryRef = database.ref('users').orderByChild('phone').equalTo(targetPhone);
@@ -238,7 +238,7 @@ if (addFriendForm) {
     queryRef.once('value', (snapshot) => {
       if (!snapshot.exists()) {
         if (searchType === "phone") {
-          alert("Usuário não encontrado. Certifique-se de que o contato já se cadastrou e inseriu o telefone no perfil.");
+          alert("Usuário não encontrado. Lembre-se de digitar com DDI e DDD (ex: 5521999998888) iguais aos salvos no cadastro.");
         } else {
           alert("Usuário não encontrado com este e-mail.");
         }
@@ -285,7 +285,7 @@ function listenToFriendships(myUid) {
       const friendUid = child.key;
       const status = child.val();
 
-      // Buscar nome/email do amigo
+      // Buscar dados do amigo
       database.ref(`users/${friendUid}`).once('value', (userSnap) => {
         const userData = userSnap.val() || {};
         const friendIdentifier = userData.email || userData.phone || friendUid;
@@ -301,7 +301,7 @@ function listenToFriendships(myUid) {
   });
 }
 
-// Ações de Aceitar / Recusar no HTML
+// Ações de Aceitar / Recusar
 function renderPendingRequest(friendUid, friendIdentifier) {
   const item = document.createElement("div");
   item.className = "pending-request-item";
@@ -333,7 +333,7 @@ function rejectFriendRequest(friendUid) {
   database.ref().update(updates);
 }
 
-// Renderiza Contato na Lista com status de horário
+// Renderiza Contato na Lista
 function renderFriendItem(friendUid, friendIdentifier) {
   const div = document.createElement("div");
   div.className = "friend-item";
@@ -348,7 +348,7 @@ function renderFriendItem(friendUid, friendIdentifier) {
   friendsList.appendChild(div);
 }
 
-// Monitora GPS de Amigos e exibe tempo de atualização
+// Monitora GPS de Amigos
 function listenToFriendLocation(friendUid, friendIdentifier) {
   database.ref(`locations/${friendUid}`).on('value', (snapshot) => {
     const data = snapshot.val();
@@ -357,7 +357,6 @@ function listenToFriendLocation(friendUid, friendIdentifier) {
     const { latitude, longitude, timestamp } = data;
     const latLng = [latitude, longitude];
 
-    // Atualiza/Cria Marcador
     if (!otherMarkers[friendUid]) {
       const marker = L.marker(latLng).addTo(map).bindPopup(`<b>${friendIdentifier}</b>`);
       otherMarkers[friendUid] = { marker, latLng };
@@ -366,10 +365,7 @@ function listenToFriendLocation(friendUid, friendIdentifier) {
       otherMarkers[friendUid].latLng = latLng;
     }
 
-    // Atualiza Data/Hora na Lista
     updateLastSeenUI(friendUid, timestamp);
-
-    // Alerta de Proximidade (Raio de 500m)
     checkProximityAlert(friendUid, friendIdentifier, latitude, longitude);
   });
 }
@@ -402,7 +398,7 @@ function checkProximityAlert(friendUid, friendIdentifier, friendLat, friendLng) 
 
   if (distance <= ALARM_RADIUS_METERS) {
     if (!alertedFriends.has(friendUid)) {
-      alertedFriends.add(friendUid); // Evita múltiplos alertas no mesmo raio
+      alertedFriends.add(friendUid);
 
       const msg = `${friendIdentifier} está próximo de você (${Math.round(distance)}m)!`;
 
@@ -413,11 +409,11 @@ function checkProximityAlert(friendUid, friendIdentifier, friendLat, friendLng) 
       }
     }
   } else {
-    alertedFriends.delete(friendUid); // Reseta se o amigo se afastar
+    alertedFriends.delete(friendUid);
   }
 }
 
-// Função de cálculo de distância (Haversine)
+// Cálculo de distância (Haversine)
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3;
   const φ1 = lat1 * Math.PI / 180;
@@ -432,7 +428,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Trajeto dos últimos 30 dias no Mapa
+// Trajeto dos últimos 30 dias
 function drawUserHistory(targetUid, title = "Trajeto") {
   const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
 
@@ -447,7 +443,6 @@ function drawUserHistory(targetUid, title = "Trajeto") {
 
       snapshot.forEach((child) => {
         const val = child.val();
-        
         if (
           val &&
           typeof val.latitude === 'number' &&
@@ -459,7 +454,6 @@ function drawUserHistory(targetUid, title = "Trajeto") {
         }
       });
 
-      // Remove trajeto anterior do mapa se existir
       if (currentPolyline) {
         map.removeLayer(currentPolyline);
         currentPolyline = null;
