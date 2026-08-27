@@ -94,7 +94,14 @@ auth.onAuthStateChanged((user) => {
   if (user) {
     authScreen.classList.add("hidden");
     mapScreen.classList.remove("hidden");
+    
     initMap();
+    
+    // Força o Leaflet a atualizar as dimensões da div #map assim que ela fica visível
+    setTimeout(() => {
+      if (map) map.invalidateSize();
+    }, 200);
+
     startLocationTracking(user.uid);
     listenToOtherLocations();
   } else {
@@ -119,27 +126,43 @@ function initMap() {
     maxZoom: 19,
     attribution: '© OpenStreetMap'
   }).addTo(map);
+}
 
-  // Ação do Botão Recenter
-  btnRecenter.addEventListener("click", () => {
-    if (userMarker) {
-      const position = userMarker.getLatLng();
-      map.setView(position, 16);
-      userMarker.openPopup();
-    } else {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          map.setView([latitude, longitude], 16);
-        },
-        (error) => {
-          alert("Não foi possível obter sua localização atual. Verifique se o GPS está ativado.");
-        },
-        { enableHighAccuracy: true }
-      );
-    }
-  });
-} // <--- AQUI ESTAVA O ERRO DE FECHAMENTO QUE FALTAVA
+// Botão Recenter (Centralizar Mapa)
+btnRecenter.addEventListener("click", () => {
+  if (!map) return;
+
+  // Atualiza as dimensões da div do mapa caso a tela tenha mudado
+  map.invalidateSize();
+
+  if (userMarker) {
+    // Se o marcador já existe, pega a posição dele e centraliza
+    const position = userMarker.getLatLng();
+    map.setView(position, 16, { animate: true });
+    userMarker.openPopup();
+  } else {
+    // Se não há marcador ainda, solicita a posição atual via navegador
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const latLng = [latitude, longitude];
+
+        if (!userMarker) {
+          userMarker = L.marker(latLng).addTo(map).bindPopup("<b>Sua localização</b>");
+        } else {
+          userMarker.setLatLng(latLng);
+        }
+
+        map.setView(latLng, 16, { animate: true });
+        userMarker.openPopup();
+      },
+      (error) => {
+        alert("Não foi possível obter sua localização. Verifique se a permissão de GPS está ativada no seu navegador.");
+      },
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+  }
+});
 
 function startLocationTracking(uid) {
   watchId = navigator.geolocation.watchPosition(
@@ -150,13 +173,14 @@ function startLocationTracking(uid) {
       // --- 1. Atualiza/Cria o marcador do PRÓPRIO usuário ---
       if (!userMarker) {
         userMarker = L.marker(latLng).addTo(map).bindPopup("<b>Sua localização</b>");
-        // Centraliza o mapa automaticamente no primeiro sinal de GPS que chegar
+        // Centraliza automaticamente e ajusta tamanho do mapa no 1º sinal
+        map.invalidateSize();
         map.setView(latLng, 16);
       } else {
         userMarker.setLatLng(latLng);
       }
 
-      // --- 2. Atualiza a localização ATUAL em tempo real (Sempre) ---
+      // --- 2. Atualiza a localização ATUAL em tempo real ---
       database.ref('locations/' + uid).set({
         latitude: latitude,
         longitude: longitude,
@@ -222,12 +246,11 @@ function listenToOtherLocations() {
 
 function updateOtherUserMarker(uid, data) {
   const currentUserId = auth.currentUser ? auth.currentUser.uid : null;
-  if (uid === currentUserId || !data) return; // Ignora o próprio usuário
+  if (uid === currentUserId || !data) return;
 
   const latLng = [data.latitude, data.longitude];
   const displayName = data.displayName || data.email || `Usuário (${uid.substring(0, 5)}...)`;
 
-  // Ícone vermelho para diferenciação visual dos amigos
   const friendIcon = L.icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -245,13 +268,12 @@ function updateOtherUserMarker(uid, data) {
     otherMarkers[uid].setLatLng(latLng);
   }
 
-  // Alerta de proximidade em tempo real
   checkProximityAlert(uid, data.latitude, data.longitude);
 }
 
 // Calcula distância entre dois pontos em metros (Fórmula de Haversine)
 function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371e3; // Raio da Terra em metros
+  const R = 6371e3;
   const φ1 = lat1 * Math.PI / 180;
   const φ2 = lat2 * Math.PI / 180;
   const Δφ = (lat2 - lat1) * Math.PI / 180;
