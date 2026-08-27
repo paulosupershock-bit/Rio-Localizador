@@ -21,8 +21,6 @@ const database = firebase.database();
 let map = null;
 let userMarker = null;
 let watchId = null;
-const otherMarkers = {};
-let currentPolyline = null;
 
 // Elementos da DOM
 const authScreen = document.getElementById("auth-screen");
@@ -63,11 +61,9 @@ if (overlay) overlay.addEventListener("click", closeDrawer);
 // MONITOR DE AUTENTICAÇÃO
 auth.onAuthStateChanged((user) => {
   if (user) {
-    // Esconde a tela de login completamente
     authScreen.classList.add("hidden");
     mapScreen.classList.remove("hidden");
 
-    // Inicializa o mapa com pequeno atraso para renderizar no tamanho correto
     setTimeout(() => {
       initMap();
       if (map) map.invalidateSize();
@@ -75,7 +71,6 @@ auth.onAuthStateChanged((user) => {
 
     startLocationTracking(user.uid);
   } else {
-    // Mostra a tela de login
     authScreen.classList.remove("hidden");
     mapScreen.classList.add("hidden");
     if (watchId) navigator.geolocation.clearWatch(watchId);
@@ -156,7 +151,7 @@ if (btnLogout) {
 // INICIALIZAR MAPA
 function initMap() {
   if (map) return;
-  const initialCoords = [-22.9068, -43.1729]; // Rio de Janeiro
+  const initialCoords = [-22.9068, -43.1729];
 
   map = L.map('map').setView(initialCoords, 14);
 
@@ -167,7 +162,10 @@ function initMap() {
 
   // Ação do Botão Centralizar (Alvo 🎯)
   if (btnRecenter) {
-    btnRecenter.addEventListener("click", () => {
+    L.DomEvent.disableClickPropagation(btnRecenter);
+
+    btnRecenter.addEventListener("click", (e) => {
+      e.stopPropagation();
       if (userMarker) {
         map.setView(userMarker.getLatLng(), 16);
       } else {
@@ -196,7 +194,6 @@ function startLocationTracking(uid) {
         userMarker.setLatLng(latLng);
       }
 
-      // Salva no Firebase
       database.ref(`locations/${uid}`).set({
         latitude,
         longitude,
