@@ -40,6 +40,8 @@ const drawer = document.getElementById("drawer");
 const overlay = document.getElementById("drawer-overlay");
 const addFriendForm = document.getElementById("add-friend-form");
 const friendEmailInput = document.getElementById("friend-email-input");
+const addFriendPhoneForm = document.getElementById("add-friend-phone-form");
+const friendPhoneInput = document.getElementById("friend-phone-input");
 const pendingRequestsList = document.getElementById("pending-requests-list");
 const friendsList = document.getElementById("friends-list");
 const btnMyHistory = document.getElementById("btn-toggle-history");
@@ -237,6 +239,50 @@ if (addFriendForm) {
         alert("Usuário não encontrado.");
         return;
       }
+// --- ADICIONAR POR TELEFONE ---
+const addFriendPhoneForm = document.getElementById("add-friend-phone-form");
+const friendPhoneInput = document.getElementById("friend-phone-input");
+
+if (addFriendPhoneForm) {
+  addFriendPhoneForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    // Limpa parênteses, traços e espaços mantendo apenas números e o +
+    const phone = friendPhoneInput.value.trim().replace(/[^\d+]/g, '');
+    searchAndSendRequest("phone", phone, friendPhoneInput);
+  });
+}
+
+// Função genérica de busca no Firebase
+function searchAndSendRequest(field, value, inputElement) {
+  if (!value) return;
+
+  database.ref('users').orderByChild(field).equalTo(value).once('value', (snapshot) => {
+    if (!snapshot.exists()) {
+      alert(`Nenhum usuário encontrado com este ${field === 'email' ? 'e-mail' : 'telefone'}.`);
+      return;
+    }
+
+    let friendUid = null;
+    snapshot.forEach(child => { friendUid = child.key; });
+
+    if (friendUid === auth.currentUser.uid) {
+      alert("Você não pode adicionar a si mesmo.");
+      return;
+    }
+
+    const updates = {};
+    updates[`/friendships/${auth.currentUser.uid}/${friendUid}`] = "pending_sent";
+    updates[`/friendships/${friendUid}/${auth.currentUser.uid}`] = "pending_received";
+
+    database.ref().update(updates)
+      .then(() => {
+        alert("Solicitação enviada com sucesso!");
+        inputElement.value = "";
+      })
+      .catch(err => alert("Erro ao enviar: " + err.message));
+  });
+}
+
 
       let friendUid = null;
       snapshot.forEach(child => { friendUid = child.key; });
