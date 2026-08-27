@@ -1,290 +1,1207 @@
 * {
+
+
+
   box-sizing: border-box;
+
+
+
   margin: 0;
+
+
+
   padding: 0;
+
+
+
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+
+
 }
+
+
+
+
+
+
 
 html, body {
+
+
+
   width: 100%;
-  height: 100vh;
+
+
+
+  height: 100%;
+
+
+
   overflow: hidden;
+
+
+
   background-color: #f0f2f5;
+
+
+
 }
+
+
+
+
+
+
+
+.screen {
+
+
+
+  width: 100%;
+
+
+
+  height: 100%;
+
+
+
+  display: flex;
+
+
+
+  flex-direction: column;
+
+
+
+}
+
+
+
+
+
+
 
 .hidden {
+
+
+
   display: none !important;
+
+
+
 }
 
-/* --- TELA DE LOGIN --- */
+
+
+
+
+
+
+/* --- Tela de Login --- */
+
+
+
 #auth-screen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 9999;
-  background: linear-gradient(135deg, #0052d4, #4364f7, #6fb1fc);
-  display: flex;
+
+
+
   align-items: center;
+
+
+
   justify-content: center;
+
+
+
   padding: 20px;
+
+
+
+  background: linear-gradient(135deg, #0052d4, #4364f7, #6fb1fc);
+
+
+
 }
+
+
+
+
+
+
 
 .auth-box {
+
+
+
   background: #ffffff;
+
+
+
   padding: 30px;
+
+
+
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+
+
+
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+
+
+
   width: 100%;
-  max-width: 380px;
+
+
+
+  max-width: 400px;
+
+
+
   text-align: center;
+
+
+
 }
 
-.auth-box h1 {
+
+
+
+
+
+
+.auth-box h2 {
+
+
+
   color: #1a1a1a;
-  margin-bottom: 6px;
-  font-size: 24px;
+
+
+
+  margin-bottom: 8px;
+
+
+
 }
+
+
+
+
+
+
 
 .auth-box p {
+
+
+
   color: #666;
-  font-size: 13px;
-  margin-bottom: 20px;
-}
 
-.auth-box input, .auth-box select {
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+
+
   font-size: 14px;
+
+
+
+  margin-bottom: 24px;
+
+
+
 }
 
-.btn-primary {
+
+
+
+
+
+
+.auth-box input {
+
+
+
   width: 100%;
+
+
+
   padding: 12px;
-  border: none;
+
+
+
+  margin-bottom: 12px;
+
+
+
+  border: 1px solid #ddd;
+
+
+
   border-radius: 6px;
-  font-size: 15px;
+
+
+
+  font-size: 16px;
+
+
+
+}
+
+
+
+
+
+
+
+.auth-box button {
+
+
+
+  width: 100%;
+
+
+
+  padding: 12px;
+
+
+
+  border: none;
+
+
+
+  border-radius: 6px;
+
+
+
+  font-size: 16px;
+
+
+
   font-weight: bold;
+
+
+
   cursor: pointer;
+
+
+
   background-color: #0052d4;
+
+
+
   color: white;
+
+
+
   margin-bottom: 8px;
+
+
+
+  transition: background 0.2s;
+
+
+
 }
 
-.btn-primary:hover {
+
+
+
+
+
+
+.auth-box button:hover {
+
+
+
   background-color: #003db3;
+
+
+
 }
 
-.btn-secondary {
-  width: 100%;
-  padding: 10px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
+
+
+
+
+
+
+.auth-box .btn-secondary {
+
+
+
   background-color: #e4e6eb;
+
+
+
   color: #050505;
-  margin-bottom: 8px;
+
+
+
 }
 
-.btn-secondary:hover {
+
+
+
+
+
+
+.auth-box .btn-secondary:hover {
+
+
+
   background-color: #d8dadf;
+
+
+
 }
 
-.btn-link {
-  background: none;
-  border: none;
-  color: #0052d4;
-  font-size: 13px;
-  text-decoration: underline;
-  cursor: pointer;
-  margin: 6px 0;
-  display: inline-block;
-}
 
-.divider {
-  margin: 12px 0;
-  color: #777;
-  font-size: 13px;
-}
 
-.btn-google {
-  width: 100%;
-  padding: 12px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-  background-color: #4285F4;
-  color: white;
-}
 
-.btn-google:hover {
-  background-color: #3367D6;
-}
 
-/* --- TELA DO MAPA --- */
-#map-screen {
-  width: 100vw;
-  height: 100vh;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
+
+
+/* --- Tela do Mapa --- */
+
+
 
 .app-header {
+
+
+
   height: 56px;
+
+
+
   background-color: #0052d4;
+
+
+
   color: white;
+
+
+
   display: flex;
+
+
+
   align-items: center;
+
+
+
   justify-content: space-between;
+
+
+
   padding: 0 16px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-  z-index: 1001;
+
+
+
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+
+
+
+  z-index: 1000;
+
+
+
 }
 
-.app-header h2 {
+
+
+
+
+
+
+.app-header h1 {
+
+
+
   font-size: 18px;
-  font-weight: 600;
+
+
+
 }
 
-.btn-icon {
-  background: transparent;
-  border: none;
-  color: white;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 4px;
-}
 
-.btn-header-logout {
+
+
+
+
+
+.app-header button {
+
+
+
   background: transparent;
+
+
+
   border: 1px solid white;
+
+
+
   color: white;
-  padding: 6px 14px;
+
+
+
+  padding: 6px 12px;
+
+
+
   border-radius: 4px;
+
+
+
   cursor: pointer;
-  font-size: 13px;
+
+
+
 }
+
+
+
+
+
+
 
 #map {
+
+
+
+  flex: 1;
+
+
+
   width: 100%;
-  height: calc(100vh - 56px);
-  position: relative !important;
+
+
+
   z-index: 1;
+
+
+
 }
 
-/* BOTÃO FLUTUANTE DE CENTRALIZAR */
-.btn-recenter {
-  position: absolute !important;
-  bottom: 25px !important;
-  right: 20px !important;
-  z-index: 999 !important;
-  width: 46px !important;
-  height: 46px !important;
-  border-radius: 50% !important;
-  background-color: #ffffff !important;
-  border: 2px solid rgba(0, 0, 0, 0.2) !important;
-  font-size: 20px !important;
-  line-height: 1 !important;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
-  cursor: pointer !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  outline: none !important;
-  transition: transform 0.15s ease, background-color 0.15s ease !important;
+
+
+
+
+
+
+.app-controls {
+
+
+
+  position: absolute;
+
+
+
+  bottom: 20px;
+
+
+
+  left: 50%;
+
+
+
+  transform: translateX(-50%);
+
+
+
+  z-index: 1000;
+
+
+
 }
 
-.btn-recenter:hover {
-  background-color: #f4f4f4 !important;
+
+
+
+
+
+
+#btn-recenter {
+
+
+
+  padding: 12px 20px;
+
+
+
+  background-color: #ffffff;
+
+
+
+  color: #0052d4;
+
+
+
+  border: none;
+
+
+
+  border-radius: 25px;
+
+
+
+  font-weight: bold;
+
+
+
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+
+
+
+  cursor: pointer;
+
+
+
 }
 
-.btn-recenter:active {
-  transform: scale(0.9) !important;
+
+
+
+
+
+
+/* --- Estilos do Drawer / Menu Lateral --- */
+
+
+
+.icon-btn {
+
+
+
+  background: transparent;
+
+
+
+  border: none;
+
+
+
+  color: white;
+
+
+
+  font-size: 24px;
+
+
+
+  cursor: pointer;
+
+
+
+  padding: 0 8px;
+
+
+
 }
 
-/* --- MENU LATERAL (DRAWER) --- */
+
+
+
+
+
+
 .drawer-overlay {
-  position: fixed;
+
+
+
+  position: absolute;
+
+
+
   top: 0;
+
+
+
   left: 0;
-  width: 100vw;
-  height: 100vh;
+
+
+
+  width: 100%;
+
+
+
+  height: 100%;
+
+
+
   background-color: rgba(0, 0, 0, 0.5);
-  z-index: 2000;
+
+
+
+  z-index: 1050;
+
+
+
+  transition: opacity 0.3s ease;
+
+
+
 }
+
+
+
+
+
+
 
 .drawer {
-  position: fixed;
+
+
+
+  position: absolute;
+
+
+
   top: 0;
-  left: -320px;
-  width: 300px;
-  height: 100vh;
+
+
+
+  left: -300px; /* Esconde o menu fora da tela */
+
+
+
+  width: 280px;
+
+
+
+  height: 100%;
+
+
+
   background-color: #ffffff;
-  z-index: 2001;
-  box-shadow: 3px 0 12px rgba(0, 0, 0, 0.25);
+
+
+
+  z-index: 1100;
+
+
+
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.2);
+
+
+
   display: flex;
+
+
+
   flex-direction: column;
-  transition: left 0.3s ease;
+
+
+
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+
+
 }
+
+
+
+
+
+
+
+/* Classe ativada via JavaScript para abrir o menu */
+
+
 
 .drawer.open {
+
+
+
   left: 0;
+
+
+
 }
+
+
+
+
+
+
 
 .drawer-header {
+
+
+
   height: 56px;
+
+
+
   background-color: #0052d4;
+
+
+
   color: white;
+
+
+
   display: flex;
+
+
+
   align-items: center;
+
+
+
   justify-content: space-between;
+
+
+
   padding: 0 16px;
+
+
+
 }
+
+
+
+
+
+
+
+.drawer-header h2 {
+
+
+
+  font-size: 16px;
+
+
+
+}
+
+
+
+
+
+
+
+.close-btn {
+
+
+
+  background: transparent;
+
+
+
+  border: none;
+
+
+
+  color: white;
+
+
+
+  font-size: 24px;
+
+
+
+  cursor: pointer;
+
+
+
+}
+
+
+
+
+
+
 
 .drawer-content {
+
+
+
   flex: 1;
+
+
+
   overflow-y: auto;
+
+
+
   padding: 16px;
+
+
+
 }
+
+
+
+
+
+
 
 .drawer-section {
-  margin-bottom: 20px;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 15px;
+
+
+
+  margin-bottom: 24px;
+
+
+
 }
 
-.drawer-section h4 {
-  font-size: 13px;
+
+
+
+
+
+
+.drawer-section h3 {
+
+
+
+  font-size: 14px;
+
+
+
   color: #666;
+
+
+
   text-transform: uppercase;
-  margin-bottom: 10px;
+
+
+
+  letter-spacing: 0.5px;
+
+
+
+  margin-bottom: 12px;
+
+
+
 }
 
-.btn-drawer-action {
+
+
+
+
+
+
+.drawer-section input {
+
+
+
   width: 100%;
+
+
+
   padding: 10px;
-  margin-bottom: 8px;
-  border: 1px solid #ddd;
+
+
+
+  border: 1px solid #ccc;
+
+
+
   border-radius: 6px;
-  background: #f8f9fa;
-  cursor: pointer;
-  font-size: 13px;
-  text-align: left;
+
+
+
+  margin-bottom: 8px;
+
+
+
+  font-size: 14px;
+
+
+
 }
 
-.btn-whatsapp {
-  background-color: #25D366 !important;
-  color: white !important;
-  border: none !important;
+
+
+
+
+
+
+.drawer-section button {
+
+
+
+  width: 100%;
+
+
+
+  padding: 10px;
+
+
+
+  background-color: #0052d4;
+
+
+
+  color: white;
+
+
+
+  border: none;
+
+
+
+  border-radius: 6px;
+
+
+
   font-weight: bold;
+
+
+
+  cursor: pointer;
+
+
+
+}
+
+
+
+
+
+
+
+/* Itens de Solicitações Pendentes */
+
+
+
+.pending-request-item {
+
+
+
+  background-color: #f8f9fa;
+
+
+
+  border: 1px solid #e9ecef;
+
+
+
+  padding: 10px;
+
+
+
+  border-radius: 6px;
+
+
+
+  margin-bottom: 8px;
+
+
+
+  font-size: 13px;
+
+
+
+}
+
+
+
+
+
+
+
+.pending-request-item button {
+
+
+
+  padding: 6px 10px;
+
+
+
+  margin-top: 6px;
+
+
+
+  margin-right: 4px;
+
+
+
+  width: auto;
+
+
+
+}
+
+
+
+
+
+
+
+.btn-danger {
+
+
+
+  background-color: #d32f2f !important;
+
+
+
+}
+
+
+
+
+
+
+
+.btn-history {
+
+
+
+  background-color: #4364f7 !important;
+
+
+
+  margin-top: 12px;
+
+
+
+}
+
+
+
+
+
+
+
+.btn-google {
+
+
+
+  background-color: #4285F4;
+
+
+
+  color: white;
+
+
+
+  border: none;
+
+
+
+  margin-top: 10px;
+
+
+
+}
+
+
+
+.btn-google:hover {
+
+
+
+  background-color: #3367D6;
+
+
+
+}
+
+
+
+/* Estilização da Lista de Amigos e Horários */
+
+.friend-item {
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  padding: 10px;
+
+  background-color: #f8f9fa;
+
+  border: 1px solid #e9ecef;
+
+  border-radius: 6px;
+
+  margin-bottom: 8px;
+
+}
+
+
+
+.friend-info {
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 2px;
+
+}
+
+
+
+.friend-info strong {
+
+  font-size: 13px;
+
+  color: #333;
+
+}
+
+
+
+.time-status {
+
+  font-size: 11px;
+
+}
+
+
+
+.time-status.online {
+
+  color: #2e7d32; /* Verde */
+
+}
+
+
+
+.time-status.outdated {
+
+  color: #c62828; /* Vermelho alerta */
+
+  font-weight: bold;
+
+}
+
+
+
+.btn-history-small {
+
+  padding: 6px 10px !important;
+
+  font-size: 11px !important;
+
+  width: auto !important;
+
+  background-color: #0052d4 !important;
+
+}
+
+
+
+.btn-accept {
+
+  background-color: #2e7d32 !important;
+
+}
+
+
+
+.pending-request-item div {
+
+  display: flex;
+
+  gap: 6px;
+
+  margin-top: 6px;
+
 }
