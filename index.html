@@ -5,11 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rio Localizador</title>
 
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Estilos Customizados -->
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
+  <!-- TELA DE LOGIN -->
   <div id="auth-screen">
     <div class="auth-box">
       <h1>Rio Localizador</h1>
@@ -30,18 +33,22 @@
     </div>
   </div>
 
+  <!-- TELA DO MAPA -->
   <div id="map-screen" class="hidden">
+    <!-- Cabeçalho -->
     <header class="app-header">
       <button id="btn-open-drawer" class="btn-icon" title="Abrir Menu">☰</button>
       <h2>Rio Localizador</h2>
       <button id="btn-logout" class="btn-header-logout">Sair</button>
     </header>
 
+    <!-- Container do Mapa -->
     <div id="map">
       <button id="btn-recenter" class="btn-recenter" title="Minha Posição">🎯</button>
     </div>
   </div>
 
+  <!-- MENU LATERAL (DRAWER) -->
   <div id="drawer-overlay" class="drawer-overlay hidden"></div>
   <aside id="drawer" class="drawer">
     <div class="drawer-header">
@@ -80,7 +87,13 @@
     </div>
   </aside>
 
+  <!-- SDKs do Firebase v8 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="https://unpkg
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Script da Aplicação -->
+  <script src="app.js"></script>
+</body>
+</html>
