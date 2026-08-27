@@ -1,205 +1,156 @@
 <!DOCTYPE html>
-
 <html lang="pt-BR">
-
 <head>
-
-  <meta charset="UTF-8">
-
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Rio Localizador</title>
 
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
 
-
-  <!-- CSS do Leaflet -->
-
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-
-
-  <!-- CSS Personalizado -->
-
-  <link rel="stylesheet" href="style.css">
-
+  <!-- Estilos Customizados -->
+  <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
 
-
-
-  <!-- Tela de Autenticação -->
-
-  <div id="auth-screen" class="screen">
-
+  <!-- TELA DE AUTENTICAÇÃO -->
+  <div id="auth-screen" class="auth-container">
     <div class="auth-box">
-
-      <h2>Rio Localizador</h2>
-
-      <p>Acompanhe localizações em tempo real</p>
-
-      
+      <h1>Rio Localizador</h1>
+      <p>Compartilhe sua localização em tempo real</p>
 
       <form id="login-form">
-
-        <input type="email" id="email" placeholder="Seu e-mail" required />
-
-        <input type="password" id="password" placeholder="Sua senha" required />
-
-        <button type="submit" id="btn-login">Entrar</button>
-
-        <button type="button" id="btn-forgot-password" class="btn-secondary">Esqueci minha senha</button>
-
-        <button type="button" id="btn-register" class="btn-secondary">Cadastrar</button>
-
-        <!-- ✅ NOVO BOTÃO ENTRAR COM GOOGLE -->
-
-        <button type="button" id="btn-google-login" class="btn-google">Entrar com Conta do Google</button>
-
+        <input type="email" id="email" placeholder="E-mail" required />
+        <input type="password" id="password" placeholder="Senha" required />
+        
+        <div class="auth-buttons">
+          <button type="submit" id="btn-login" class="btn-primary">Entrar</button>
+          <button type="button" id="btn-register" class="btn-secondary">Cadastrar</button>
+        </div>
       </form>
 
-    </div>
+      <button id="btn-forgot-password" class="btn-link">Esqueceu a senha?</button>
 
+      <div class="divider">ou</div>
+
+      <button id="btn-google-login" class="btn-google">
+        Entrar com Google
+      </button>
+    </div>
   </div>
 
-
-
-  <!-- Tela Principal do Mapa -->
-
-  <div id="map-screen" class="screen hidden">
-
-    
-
-    <!-- Cabeçalho / Barra Superior -->
-
+  <!-- TELA DO MAPA (PRINCIPAL) -->
+  <div id="map-screen" class="hidden">
+    <!-- Header/Barra Superior -->
     <header class="app-header">
-
-      <button id="btn-open-drawer" class="icon-btn" aria-label="Abrir Menu">☰</button>
-
-      <h1>Rio Localizador</h1>
-
-      <button id="btn-logout">Sair</button>
-
+      <button id="btn-open-drawer" class="btn-icon" aria-label="Abrir Menu">
+        ☰
+      </button>
+      <h2>Rio Localizador</h2>
+      <button id="btn-logout" class="btn-small">Sair</button>
     </header>
 
-
-
-    <!-- Camada de Fundo Escuro para Fechar o Menu -->
-
-    <div id="drawer-overlay" class="drawer-overlay hidden"></div>
-
-
-
-    <!-- Menu Lateral Dobrável (Drawer) -->
-
-    <aside id="drawer" class="drawer">
-
-      <div class="drawer-header">
-
-        <h2>Contatos e Solicitações</h2>
-
-        <button id="btn-close-drawer" class="close-btn">&times;</button>
-
-      </div>
-
-
-
-      <div class="drawer-content">
-
-        <!-- Adicionar Amigo (E-mail ou Telefone) -->
-<section class="drawer-section">
-  <h3>Adicionar Amigo</h3>
-  <form id="add-friend-form">
-    <select id="friend-search-type" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;">
-      <option value="email">Buscar por E-mail</option>
-      <option value="phone">Buscar por Telefone</option>
-    </select>
-
-    <input type="email" id="friend-email-input" placeholder="E-mail do contato..." required />
-    <input type="tel" id="friend-phone-input" class="hidden" placeholder="Ex: 21999998888 (com DDD)" />
-
-    <button type="submit">Enviar Pedido</button>
-  </form>
-</section>
-
-
-
-        <!-- Solicitações Pendentes -->
-
-        <section class="drawer-section">
-
-          <h3>Solicitações Pendentes</h3>
-
-          <div id="pending-requests-list" class="requests-list">
-
-            <!-- Itens inseridos dinamicamente via JS -->
-
-          </div>
-
-        </section>
-
-
-
-        <!-- Lista de Amigos / Trajetos -->
-
-        <section class="drawer-section">
-
-          <h3>Meus Contatos</h3>
-
-          <div id="friends-list" class="friends-list">
-
-            <!-- Lista dinâmica de amigos -->
-
-          </div>
-
-          <button id="btn-toggle-history" class="btn-history">Ver Meu Trajeto (30 dias)</button>
-
-        </section>
-
-      </div>
-
-    </aside>
-
-
-
     <!-- Recipiente do Mapa Leaflet -->
-
     <div id="map"></div>
 
-
-
-    <!-- Barra de Controle Inferior -->
-
-    <footer class="app-controls">
-
-      <button id="btn-recenter">Centralizar no Meu GPS</button>
-
-    </footer>
-
+    <!-- Botão Flutuante para Recentralizar Mapa -->
+    <button id="btn-recenter" class="btn-floating" aria-label="Minha Posição">
+      🎯
+    </button>
   </div>
 
+  <!-- DRAWER / MENU LATERAL -->
+  <div id="drawer-overlay" class="drawer-overlay hidden"></div>
 
+  <aside id="drawer" class="drawer">
+    <div class="drawer-header">
+      <h3>Opções & Amigos</h3>
+      <button id="btn-close-drawer" class="btn-icon" aria-label="Fechar Menu">✕</button>
+    </div>
 
-  <!-- SDKs do Firebase -->
+    <div class="drawer-content">
+      <!-- Seção do Perfil/Telefone -->
+      <section class="drawer-section">
+        <button id="btn-update-phone" class="btn-secondary" style="width: 100%; margin-bottom: 10px;">
+          📱 Cadastrar/Atualizar Telefone
+        </button>
+        <button id="btn-toggle-history" class="btn-secondary" style="width: 100%;">
+          📍 Ver Meu Trajeto (30 dias)
+        </button>
+      </section>
 
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+      <hr />
 
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+      <!-- Formulário para Adicionar Amigos -->
+      <section class="drawer-section">
+        <h4>Adicionar Amigo</h4>
+        <form id="add-friend-form">
+          <label for="friend-search-type">Buscar por:</label>
+          <select id="friend-search-type">
+            <option value="email">E-mail</option>
+            <option value="phone">Telefone</option>
+          </select>
 
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+          <input 
+            type="email" 
+            id="friend-email-input" 
+            placeholder="E-mail do amigo" 
+            required 
+          />
 
+          <input 
+            type="tel" 
+            id="friend-phone-input" 
+            placeholder="Telefone (ex: 21999998888)" 
+            class="hidden" 
+          />
 
+          <button type="submit" class="btn-primary" style="width: 100%; margin-top: 8px;">
+            Enviar Solicitação
+          </button>
+        </form>
+      </section>
+
+      <hr />
+
+      <!-- Solicitações Pendentes -->
+      <section class="drawer-section">
+        <h4>Solicitações Pendentes</h4>
+        <div id="pending-requests-list" class="requests-list">
+          <!-- Inserido dinamicamente pelo JS -->
+        </div>
+      </section>
+
+      <hr />
+
+      <!-- Lista de Amigos Conectados -->
+      <section class="drawer-section">
+        <h4>Meus Amigos</h4>
+        <div id="friends-list" class="friends-list">
+          <!-- Inserido dinamicamente pelo JS -->
+        </div>
+      </section>
+    </div>
+  </aside>
+
+  <!-- Firebase SDKs (Versão Compatível / v8) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-
-
-  <!-- Script Principal -->
-
- <script src="app.js"></script>
-
+  <!-- Script Principal da Aplicação -->
+  <script src="app.js"></script>
 </body>
-
 </html>
