@@ -1,361 +1,603 @@
-// --- Configuração do Firebase ---
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// Configuração do Firebase
+
 const firebaseConfig = {
+
   apiKey: "AIzaSyBNkf6_wsmi3lH53oZyY50YDWt7mCAdwzk",
+
   authDomain: "riolocalizador.firebaseapp.com",
+
   databaseURL: "https://riolocalizador-default-rtdb.firebaseio.com",
+
   projectId: "riolocalizador",
+
   storageBucket: "riolocalizador.firebasestorage.app",
+
   messagingSenderId: "698167641664",
-  appId: "1:698167641664:web:fd4d41f8c221a460e401a5",
-  measurementId: "G-DR6MVHS9NJ"
+
+  appId: "1:698167641664:web:fd4d41f8c221a460e401a5"
+
 };
 
-// Inicializa o Firebase
+
+
+// Inicializa o Firebase — SÓ UMA VEZ! SEM LINHAS DE IMPORT!
+
 firebase.initializeApp(firebaseConfig);
+
 const auth = firebase.auth();
-const db = firebase.firestore();
 
-// --- Referências do DOM ---
-const authScreen = document.getElementById("auth-screen");
-const mapScreen = document.getElementById("map-screen");
-const authForm = document.getElementById("auth-form");
-const emailInput = document.getElementById("email");
-const passwordInput = document.getElementById("password");
-const btnLogin = document.getElementById("btn-login");
-const btnSignup = document.getElementById("btn-signup");
-const btnLogout = document.getElementById("btn-logout");
-const authError = document.getElementById("auth-error");
-const userDisplayEmail = document.getElementById("user-display-email");
+const database = firebase.database();
 
-const friendsPanel = document.getElementById("friends-panel");
-const btnToggleMenu = document.getElementById("btn-toggle-menu");
-const btnClosePanel = document.getElementById("btn-close-panel");
 
-const friendEmailInput = document.getElementById("friend-email-input");
-const btnAddFriend = document.getElementById("btn-add-friend");
-const requestsList = document.getElementById("requests-list");
-const friendsList = document.getElementById("friends-list");
 
-const btnRecenter = document.getElementById("btn-recenter");
-const btnMyHistory = document.getElementById("btn-my-history");
+// --- O RESTO DO SEU CÓDIGO CONTINUA IGUAL ABAIXO ---
 
-// --- Variáveis Globais de Controle ---
+// Variáveis Globais
+
 let map = null;
+
 let userMarker = null;
-let friendMarkers = {};
-let activePolyline = null;
+
 let watchId = null;
 
-// --- Controle de Visibilidade do Menu Lateral ---
-btnToggleMenu.addEventListener("click", () => {
-  friendsPanel.classList.toggle("collapsed");
-});
+const otherMarkers = {};
 
-btnClosePanel.addEventListener("click", () => {
-  friendsPanel.classList.add("collapsed");
-});
 
-// --- Tratamento de Erros Amigável ---
-function handleAuthError(error) {
-  console.error("Erro de Autenticação:", error);
-  switch (error.code) {
-    case 'auth/user-not-found':
-      authError.textContent = "Usuário não encontrado. Crie uma conta antes de entrar.";
-      break;
-    case 'auth/wrong-password':
-      authError.textContent = "Senha incorreta. Verifique e tente novamente.";
-      break;
-    case 'auth/invalid-email':
-      authError.textContent = "Formato de e-mail inválido.";
-      break;
-    case 'auth/weak-password':
-      authError.textContent = "A senha deve ter pelo menos 6 caracteres.";
-      break;
-    case 'auth/email-already-in-use':
-      authError.textContent = "Este e-mail já está cadastrado. Clique em Entrar.";
-      break;
-    case 'auth/operation-not-allowed':
-      authError.textContent = "Erro: O método E-mail/Senha não está ativado no Firebase Console.";
-      break;
-    default:
-      authError.textContent = error.message;
-  }
+
+// Elementos da DOM
+
+const authScreen = document.getElementById("auth-screen");
+
+const mapScreen = document.getElementById("map-screen");
+
+const loginForm = document.getElementById("login-form");
+
+const emailInput = document.getElementById("email");
+
+const passwordInput = document.getElementById("password");
+
+const btnRegister = document.getElementById("btn-register");
+
+const btnLogout = document.getElementById("btn-logout");
+
+const btnRecenter = document.getElementById("btn-recenter");
+
+
+
+// --- CONTROLE DO MENU LATERAL ---
+const btnOpenDrawer = document.getElementById("btn-open-drawer");
+const btnCloseDrawer = document.getElementById("btn-close-drawer");
+const drawer = document.getElementById("drawer");
+const overlay = document.getElementById("drawer-overlay");
+
+function openDrawer() {
+  drawer.classList.add("open"); // Adiciona 'open' para o menu deslizar na tela
+  overlay.classList.remove("hidden"); // Exibe a camada de fundo escura
 }
 
-// --- Gestão de Autenticação ---
+function closeDrawer() {
+  drawer.classList.remove("open"); // Esconde o menu novamente à esquerda
+  overlay.classList.add("hidden"); // Esconde a camada escura
+}
 
-btnLogin.addEventListener("click", (e) => {
-  e.preventDefault();
-  authError.textContent = "";
-  const email = emailInput.value.trim();
-  const password = passwordInput.value;
+btnOpenDrawer.addEventListener("click", openDrawer);
+btnCloseDrawer.addEventListener("click", closeDrawer);
+overlay.addEventListener("click", closeDrawer);
 
-  if (!email || !password) {
-    authError.textContent = "Preencha e-mail e senha.";
-    return;
+// Fechar menu se a tecla ESC for pressionada
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && drawer.classList.contains('open')) {
+    closeDrawer();
   }
-  
-  auth.signInWithEmailAndPassword(email, password)
-    .catch(handleAuthError);
 });
 
-btnSignup.addEventListener("click", (e) => {
+
+// Autenticação: Login
+
+loginForm.addEventListener("submit", (e) => {
+
   e.preventDefault();
-  authError.textContent = "";
-  const email = emailInput.value.trim();
+
+  const email = emailInput.value;
+
   const password = passwordInput.value;
 
+
+
+  auth.signInWithEmailAndPassword(email, password)
+
+    .catch((error) => alert("Erro ao entrar: " + error.message));
+
+});
+
+
+
+// Autenticação: Cadastro
+
+btnRegister.addEventListener("click", () => {
+
+  const email = emailInput.value;
+
+  const password = passwordInput.value;
+
+
+
   if (!email || !password) {
-    authError.textContent = "Preencha e-mail e senha.";
+
+    alert("Preencha e-mail e senha para cadastrar.");
+
     return;
+
   }
+
+
 
   auth.createUserWithEmailAndPassword(email, password)
-    .then((userCredential) => {
-      return db.collection("users").doc(userCredential.user.uid).set({
-        email: email,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    })
-    .catch(handleAuthError);
+
+    .then(() => alert("Conta criada com sucesso!"))
+
+    .catch((error) => alert("Erro ao cadastrar: " + error.message));
+
 });
+
+
+
+// Autenticação: Logout
 
 btnLogout.addEventListener("click", () => {
+
   auth.signOut();
+
 });
 
+
+
+// Observador do Estado de Autenticação
+
 auth.onAuthStateChanged((user) => {
+
   if (user) {
-    userDisplayEmail.textContent = user.email;
+
     authScreen.classList.add("hidden");
+
     mapScreen.classList.remove("hidden");
 
     initMap();
 
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        if (map) {
-          map.invalidateSize();
-        }
-      }, 300);
-    });
-
     startLocationTracking(user.uid);
-    listenToFriendships(user.uid);
+
+    listenToOtherLocations();
+
   } else {
+
     if (watchId) navigator.geolocation.clearWatch(watchId);
+
     authScreen.classList.remove("hidden");
+
     mapScreen.classList.add("hidden");
+
   }
+
 });
 
-// --- Gestão do Mapa ---
+
+
+// --- Funções do Mapa e Geolocalização ---
+
+
 
 function initMap() {
-  if (map) return;
 
-  const defaultCoords = [-22.9068, -43.1729];
-  map = L.map('map').setView(defaultCoords, 13);
+  if (map) return; // Evita recriar o mapa se já existir
+
+
+
+  // Coordenadas padrão do Rio de Janeiro
+
+  const rioCoords = [-22.9068, -43.1729];
+
+  
+
+  map = L.map('map').setView(rioCoords, 13);
+
+
+
+  // Adiciona a camada de mapa do OpenStreetMap
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+
     maxZoom: 19,
+
     attribution: '© OpenStreetMap'
+
   }).addTo(map);
 
-  setTimeout(() => {
-    if (map) map.invalidateSize();
-  }, 200);
 
-  if (btnRecenter) {
-    btnRecenter.addEventListener("click", () => {
-      if (userMarker) map.setView(userMarker.getLatLng(), 16);
-    });
-  }
 
-  if (btnMyHistory) {
-    btnMyHistory.addEventListener("click", () => {
-      if (auth.currentUser) drawUserHistory(auth.currentUser.uid, "Meu Trajeto");
-    });
-  }
+  btnRecenter.addEventListener("click", () => {
+
+    if (userMarker) {
+
+      map.setView(userMarker.getLatLng(), 16);
+
+    }
+
+  });
+
 }
 
-// --- Geolocalização e Rastreamento em Tempo Real ---
 
-function startLocationTracking(userId) {
-  if (!navigator.geolocation) {
-    alert("Geolocalização não suportada pelo seu navegador.");
-    return;
-  }
+
+function startLocationTracking(uid) {
+
+  // ... (código anterior da função) ...
+
+
 
   watchId = navigator.geolocation.watchPosition(
+
     (position) => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      const latLng = [lat, lng];
 
-      if (!userMarker) {
-        userMarker = L.marker(latLng).addTo(map).bindPopup("Você está aqui");
-        map.setView(latLng, 15);
-      } else {
-        userMarker.setLatLng(latLng);
-      }
+      const { latitude, longitude } = position.coords;
 
-      db.collection("locations").doc(userId).set({
-        latitude: lat,
-        longitude: lng,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      const latLng = [latitude, longitude];
+
+
+
+      // ... (código para atualizar o marcador do usuário, se houver) ...
+
+
+
+      // --- PARTE DE SALVAMENTO NO BANCO ---
+
+
+
+      // 1. Atualiza a localização ATUAL em tempo real (DEIXE ESTE TRECHO AQUI)
+
+      database.ref('locations/' + uid).set({
+
+        latitude: latitude,
+
+        longitude: longitude,
+
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+
       });
 
-      db.collection("locations").doc(userId).collection("history").add({
-        latitude: lat,
-        longitude: lng,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+
+
+      // 2. Salva um registro no HISTÓRICO (COLE ESTE TRECHO LOGO ABAIXO)
+
+      database.ref(`location_history/${uid}`).push({
+
+        latitude: latitude,
+
+        longitude: longitude,
+
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+
       });
+
+
+
+      // --- FIM DA PARTE DE SALVAMENTO ---
+
+
+
+      // ... (resto do código da função, como o console.error) ...
+
     },
-    (error) => console.error("Erro ao obter localização:", error),
-    { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+
+    (error) => console.error("Erro no GPS: ", error),
+
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+
   );
+
 }
 
-// --- Sistema de Amizades ---
+function listenToOtherLocations() {
 
-btnAddFriend.addEventListener("click", () => {
-  const friendEmail = friendEmailInput.value.trim();
-  if (!friendEmail) return;
+  const locationsRef = database.ref('locations');
 
-  db.collection("users").where("email", "==", friendEmail).get()
-    .then(snapshot => {
-      if (snapshot.empty) {
-        alert("Usuário não encontrado.");
-        return;
-      }
 
-      const friendId = snapshot.docs[0].id;
-      const currentUserId = auth.currentUser.uid;
 
-      if (friendId === currentUserId) {
-        alert("Você não pode adicionar a si mesmo.");
-        return;
-      }
+  locationsRef.on('child_added', (snapshot) => {
 
-      db.collection("friendships").add({
-        requesterId: currentUserId,
-        receiverId: friendId,
-        status: "pending"
-      }).then(() => {
-        alert("Solicitação enviada!");
-        friendEmailInput.value = "";
-      });
-    })
-    .catch(err => console.error("Erro ao adicionar amigo:", err));
-});
+    updateOtherUserMarker(snapshot.key, snapshot.val());
 
-function listenToFriendships(userId) {
-  db.collection("friendships")
-    .where("receiverId", "==", userId)
-    .where("status", "==", "pending")
-    .onSnapshot(snapshot => {
-      requestsList.innerHTML = "";
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        
-        db.collection("users").doc(data.requesterId).get().then(userDoc => {
-          const li = document.createElement("li");
-          li.textContent = userDoc.data()?.email || "Usuário";
-          
-          const btnAccept = document.createElement("button");
-          btnAccept.textContent = "Aceitar";
-          btnAccept.className = "btn-accept";
-          btnAccept.onclick = () => acceptFriendship(doc.id);
-
-          li.appendChild(btnAccept);
-          requestsList.appendChild(li);
-        });
-      });
-    });
-
-  db.collection("friendships")
-    .where("status", "==", "accepted")
-    .onSnapshot(snapshot => {
-      friendsList.innerHTML = "";
-      
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.requesterId === userId || data.receiverId === userId) {
-          const friendId = data.requesterId === userId ? data.receiverId : data.requesterId;
-          
-          db.collection("users").doc(friendId).get().then(userDoc => {
-            const friendData = userDoc.data();
-            if (!friendData) return;
-
-            const li = document.createElement("li");
-            li.textContent = friendData.email;
-
-            const btnTrack = document.createElement("button");
-            btnTrack.textContent = "Ver Trajeto";
-            btnTrack.className = "btn-track";
-            btnTrack.onclick = () => drawUserHistory(friendId, friendData.email);
-
-            li.appendChild(btnTrack);
-            friendsList.appendChild(li);
-
-            trackFriendLocation(friendId, friendData.email);
-          });
-        }
-      });
-    });
-}
-
-function acceptFriendship(friendshipId) {
-  db.collection("friendships").doc(friendshipId).update({
-    status: "accepted"
   });
-}
 
-function trackFriendLocation(friendId, friendEmail) {
-  db.collection("locations").doc(friendId).onSnapshot(doc => {
-    if (!doc.exists) return;
 
-    const data = doc.data();
-    const latLng = [data.latitude, data.longitude];
 
-    if (!friendMarkers[friendId]) {
-      friendMarkers[friendId] = L.marker(latLng).addTo(map).bindPopup(friendEmail);
-    } else {
-      friendMarkers[friendId].setLatLng(latLng);
+  locationsRef.on('child_changed', (snapshot) => {
+
+    updateOtherUserMarker(snapshot.key, snapshot.val());
+
+  });
+
+
+
+  locationsRef.on('child_removed', (snapshot) => {
+
+    const uid = snapshot.key;
+
+    if (otherMarkers[uid]) {
+
+      map.removeLayer(otherMarkers[uid]);
+
+      delete otherMarkers[uid];
+
     }
+
   });
+
 }
 
-// --- Histórico de Trajeto ---
 
-function drawUserHistory(targetUserId, label) {
-  const startOfDay = new Date();
-  startOfDay.setHours(0,0,0,0);
 
-  db.collection("locations").doc(targetUserId).collection("history")
-    .where("timestamp", ">=", startOfDay)
-    .orderBy("timestamp", "asc")
-    .get()
-    .then(snapshot => {
-      const latLngs = [];
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        latLngs.push([data.latitude, data.longitude]);
+function updateOtherUserMarker(uid, data) {
+
+  const currentUserId = auth.currentUser ? auth.currentUser.uid : null;
+
+  if (uid === currentUserId || !data) return; // Ignora o próprio usuário
+
+
+
+  const latLng = [data.latitude, data.longitude];
+
+
+
+  if (!otherMarkers[uid]) {
+
+    otherMarkers[uid] = L.marker(latLng).addTo(map).bindPopup("Usuário: " + uid);
+
+  } else {
+
+    otherMarkers[uid].setLatLng(latLng);
+
+  }
+
+}
+
+
+
+// Calcula distância entre dois pontos em metros
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+
+  const R = 6371e3; // Raio da Terra em metros
+
+  const φ1 = lat1 * Math.PI / 180;
+
+  const φ2 = lat2 * Math.PI / 180;
+
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+
+          Math.cos(φ1) * Math.cos(φ2) *
+
+          Math.sin(Δλ/2) * Math.sin(Δλ/2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+
+
+  return R * c; // Distância em metros
+
+}
+
+
+
+// Chame esta verificação sempre que a posição de um amigo for atualizada:
+
+function checkProximityAlert(friendUid, friendLat, friendLng) {
+
+  if (!userMarker) return;
+
+  const myPos = userMarker.getLatLng();
+
+  
+
+  const distance = calculateDistance(myPos.lat, myPos.lng, friendLat, friendLng);
+
+  const ALARM_RADIUS_METERS = 500; // Raio configurável
+
+
+
+  if (distance <= ALARM_RADIUS_METERS) {
+
+    // Solicita permissão de notificação nativa do navegador/Android se necessário
+
+    if (Notification.permission === "granted") {
+
+      new Notification("Amigo Próximo!", {
+
+        body: `Um amigo está a apenas ${Math.round(distance)}m de você.`,
+
+        icon: "/icon.png"
+
       });
 
-      if (latLngs.length === 0) {
-        alert("Nenhum histórico encontrado para hoje.");
-        return;
-      }
+    } else {
 
-      if (activePolyline) {
-        map.removeLayer(activePolyline);
-      }
+      alert(`⚠️ Amigo Próximo! Um amigo está a ${Math.round(distance)}m de você.`);
 
-      activePolyline = L.polyline(latLngs, { color: 'blue', weight: 4 }).addTo(map);
-      map.fitBounds(activePolyline.getBounds());
-    })
-    .catch(err => console.error("Erro ao carregar histórico:", err));
+    }
+
+  }
+
 }
+
+
+
+// Aceitar solicitação de amizade
+
+function acceptFriendRequest(friendUid) {
+
+  const currentUid = auth.currentUser.uid;
+
+
+
+  // Atualiza em ambas as pontas para amizade mútua
+
+  const updates = {};
+
+  updates[`/friendships/${currentUid}/${friendUid}`] = 'accepted';
+
+  updates[`/friendships/${friendUid}/${currentUid}`] = 'accepted';
+
+
+
+  database.ref().update(updates)
+
+    .then(() => alert("Solicitação aceita!"))
+
+    .catch((err) => alert("Erro ao aceitar: " + err.message));
+
+}
+
+
+
+// Recusar ou cancelar solicitação
+
+function rejectFriendRequest(friendUid) {
+
+  const currentUid = auth.currentUser.uid;
+
+
+
+  const updates = {};
+
+  updates[`/friendships/${currentUid}/${friendUid}`] = null;
+
+  updates[`/friendships/${friendUid}/${currentUid}`] = null;
+
+
+
+  database.ref().update(updates)
+
+    .then(() => alert("Solicitação removida."))
+
+    .catch((err) => alert("Erro ao recusar: " + err.message));
+
+}
+
+
+
+
+
+let currentPolyline = null;
+
+
+
+function drawUserHistory(targetUid) {
+
+  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+
+
+
+  // Busca pontos a partir de 30 dias atrás
+
+  database.ref(`location_history/${targetUid}`)
+
+    .orderByChild('timestamp')
+
+    .startAt(thirtyDaysAgo)
+
+    .once('value', (snapshot) => {
+
+      const latLngs = [];
+
+
+
+      snapshot.forEach((child) => {
+
+        const val = child.val();
+
+        latLngs.push([val.latitude, val.longitude]);
+
+      });
+
+
+
+      // Remove linha anterior se já existir no mapa
+
+      if (currentPolyline) {
+
+        map.removeLayer(currentPolyline);
+
+      }
+
+
+
+      // Desenha a linha do trajeto no mapa (cor azul)
+
+      if (latLngs.length > 0) {
+
+        currentPolyline = L.polyline(latLngs, { color: '#0052d4', weight: 4, opacity: 0.7 }).addTo(map);
+
+        map.fitBounds(currentPolyline.getBounds()); // Ajusta o zoom para cobrir o trajeto
+
+      } else {
+
+        alert("Nenhum trajeto encontrado nos últimos 30 dias.");
+
+      }
+
+    });
+
+}
+
+
+
+// --- ENTRAR COM CONTA DO GOOGLE ---
+
+
+
+// Cria o provedor do Google
+
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+
+
+// Pega o botão
+
+const btnGoogleLogin = document.getElementById("btn-google-login");
+
+
+
+// Ação ao clicar no botão
+
+btnGoogleLogin.addEventListener("click", () => {
+
+  auth.signInWithPopup(googleProvider)
+
+    .then((result) => {
+
+      // Login bem-sucedido
+
+      const user = result.user;
+
+      alert("Login com Google bem-sucedido! Bem-vindo, " + user.displayName);
+
+    })
+
+    .catch((error) => {
+
+      // Se o usuário fechou a janela ou deu erro
+
+      if (error.code !== "auth/popup-closed-by-user") {
+
+        alert("Erro ao entrar com Google: " + error.message);
+
+      }
+
+  });
+
+}); 

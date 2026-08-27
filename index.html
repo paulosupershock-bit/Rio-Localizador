@@ -1,88 +1,205 @@
 <!DOCTYPE html>
+
 <html lang="pt-BR">
+
 <head>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GeoFriends</title>
-  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <title>Rio Localizador</title>
+
+
+
   <!-- CSS do Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+
+
+  <!-- CSS Personalizado -->
+
   <link rel="stylesheet" href="style.css">
+
 </head>
+
 <body>
 
-  <!-- Tela 1: Login/Cadastro -->
+
+
+  <!-- Tela de Autenticação -->
+
   <div id="auth-screen" class="screen">
-    <div class="auth-card">
-      <h2>GeoFriends</h2>
-      <p>Acompanhe a localização dos seus amigos</p>
+
+    <div class="auth-box">
+
+      <h2>Rio Localizador</h2>
+
+      <p>Acompanhe localizações em tempo real</p>
+
       
-      <form id="auth-form">
-        <input type="email" id="email" placeholder="E-mail" required autocomplete="username">
-        <input type="password" id="password" placeholder="Senha" required autocomplete="current-password">
-        
+
+      <form id="login-form">
+
+        <input type="email" id="email" placeholder="Seu e-mail" required />
+
+        <input type="password" id="password" placeholder="Sua senha" required />
+
         <button type="submit" id="btn-login">Entrar</button>
-        <button type="button" id="btn-signup" class="btn-secondary">Criar Conta</button>
+
+        <button type="button" id="btn-forgot-password" class="btn-secondary">Esqueci minha senha</button>
+
+        <button type="button" id="btn-register" class="btn-secondary">Cadastrar</button>
+
+        <!-- ✅ NOVO BOTÃO ENTRAR COM GOOGLE -->
+
+        <button type="button" id="btn-google-login" class="btn-google">Entrar com Conta do Google</button>
+
       </form>
-      <p id="auth-error" class="error-msg"></p>
+
     </div>
+
   </div>
 
-  <!-- Tela 2: Aplicação Principal (Mapa) -->
+
+
+  <!-- Tela Principal do Mapa -->
+
   <div id="map-screen" class="screen hidden">
-    <!-- Barra Superior -->
+
+    
+
+    <!-- Cabeçalho / Barra Superior -->
+
     <header class="app-header">
-      <div class="header-left">
-        <button id="btn-toggle-menu" class="btn-menu-toggle" title="Abrir/Fechar Menu">☰</button>
-        <span id="user-display-email" class="user-email-text"></span>
-      </div>
-      <button id="btn-logout" class="btn-logout">Sair</button>
+
+      <button id="btn-open-drawer" class="icon-btn" aria-label="Abrir Menu">☰</button>
+
+      <h1>Rio Localizador</h1>
+
+      <button id="btn-logout">Sair</button>
+
     </header>
 
-    <!-- Área Principal (Mapa + Overlay) -->
-    <div class="main-container">
-      <!-- Painel Lateral de Amigos -->
-      <aside id="friends-panel" class="friends-panel">
-        <div class="panel-header">
-          <h3>Amigos</h3>
-          <button id="btn-close-panel" class="btn-close">✕</button>
-        </div>
-        
+
+
+    <!-- Camada de Fundo Escuro para Fechar o Menu -->
+
+    <div id="drawer-overlay" class="drawer-overlay hidden"></div>
+
+
+
+    <!-- Menu Lateral Dobrável (Drawer) -->
+
+    <aside id="drawer" class="drawer">
+
+      <div class="drawer-header">
+
+        <h2>Contatos e Solicitações</h2>
+
+        <button id="btn-close-drawer" class="close-btn">&times;</button>
+
+      </div>
+
+
+
+      <div class="drawer-content">
+
         <!-- Adicionar Amigo -->
-        <div class="add-friend-box">
-          <input type="email" id="friend-email-input" placeholder="E-mail do amigo">
-          <button id="btn-add-friend">+</button>
-        </div>
-        
-        <!-- Lista de Solicitações Pendentes -->
-        <div class="section-title">Solicitações</div>
-        <ul id="requests-list" class="friends-list"></ul>
 
-        <!-- Lista de Amigos Aceitos -->
-        <div class="section-title">Seus Amigos</div>
-        <ul id="friends-list" class="friends-list"></ul>
-      </aside>
+        <section class="drawer-section">
 
-      <!-- Container do Mapa -->
-      <div id="map"></div>
-    </div>
+          <h3>Adicionar Amigo</h3>
 
-    <!-- Controles Flutuantes do Mapa -->
-    <div class="map-controls">
-      <button id="btn-recenter" title="Centralizar em mim">🎯</button>
-      <button id="btn-my-history" title="Meu Histórico do Dia">📜</button>
-    </div>
+          <form id="add-friend-form">
+
+            <input type="email" id="friend-email-input" placeholder="E-mail do contato..." required />
+
+            <button type="submit">Enviar Pedido</button>
+
+          </form>
+
+        </section>
+
+
+
+        <!-- Solicitações Pendentes -->
+
+        <section class="drawer-section">
+
+          <h3>Solicitações Pendentes</h3>
+
+          <div id="pending-requests-list" class="requests-list">
+
+            <!-- Itens inseridos dinamicamente via JS -->
+
+          </div>
+
+        </section>
+
+
+
+        <!-- Lista de Amigos / Trajetos -->
+
+        <section class="drawer-section">
+
+          <h3>Meus Contatos</h3>
+
+          <div id="friends-list" class="friends-list">
+
+            <!-- Lista dinâmica de amigos -->
+
+          </div>
+
+          <button id="btn-toggle-history" class="btn-history">Ver Meu Trajeto (30 dias)</button>
+
+        </section>
+
+      </div>
+
+    </aside>
+
+
+
+    <!-- Recipiente do Mapa Leaflet -->
+
+    <div id="map"></div>
+
+
+
+    <!-- Barra de Controle Inferior -->
+
+    <footer class="app-controls">
+
+      <button id="btn-recenter">Centralizar no Meu GPS</button>
+
+    </footer>
+
   </div>
 
-  <!-- SDKs do Firebase v8 -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-  <!-- JS do Leaflet -->
+
+  <!-- SDKs do Firebase -->
+
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+
+
+  <!-- Leaflet JS -->
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Script da Aplicação -->
-  <script src="app.js"></script>
+
+
+  <!-- Script Principal -->
+
+ <script src="app.js"></script>
+
 </body>
+
 </html>
