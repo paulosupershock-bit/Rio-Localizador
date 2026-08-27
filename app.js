@@ -20,7 +20,7 @@ let userMarker = null;
 let watchId = null;
 const otherMarkers = {};
 let currentPolyline = null;
-const alertedFriends = new Set(); // Para não disparar notificação repetida no mesmo raio
+const alertedFriends = new Set();
 
 // Elementos da DOM
 const authScreen = document.getElementById("auth-screen");
@@ -47,20 +47,15 @@ const friendsList = document.getElementById("friends-list");
 const btnMyHistory = document.getElementById("btn-toggle-history");
 const btnUpdatePhone = document.getElementById("btn-update-phone");
 
-// --- FUNÇÃO AUXILIAR DE PADRONIZAÇÃO DE TELEFONE COM SINAL + ---
+// --- FUNÇÃO AUXILIAR DE PADRONIZAÇÃO DE TELEFONE ---
 function formatPhoneNumber(phoneInput) {
   if (!phoneInput) return "";
-  
-  // Remove tudo que não for dígito
   let cleaned = phoneInput.replace(/\D/g, "");
   if (!cleaned) return "";
 
-  // Se digitado sem o DDI do Brasil (ex: 10 ou 11 dígitos), adiciona '55'
   if (cleaned.length === 10 || cleaned.length === 11) {
     cleaned = "55" + cleaned;
   }
-
-  // Adiciona obrigatoriamente o sinal de '+' na frente (ex: +5521999998888)
   return "+" + cleaned;
 }
 
@@ -75,12 +70,12 @@ function closeDrawer() {
   overlay.classList.add("hidden");
 }
 
-btnOpenDrawer.addEventListener("click", openDrawer);
-btnCloseDrawer.addEventListener("click", closeDrawer);
-overlay.addEventListener("click", closeDrawer);
+if (btnOpenDrawer) btnOpenDrawer.addEventListener("click", openDrawer);
+if (btnCloseDrawer) btnCloseDrawer.addEventListener("click", closeDrawer);
+if (overlay) overlay.addEventListener("click", closeDrawer);
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && drawer.classList.contains('open')) {
+  if (event.key === 'Escape' && drawer && drawer.classList.contains('open')) {
     closeDrawer();
   }
 });
@@ -91,32 +86,36 @@ if ("Notification" in window && Notification.permission !== "granted") {
 }
 
 // Login
-loginForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  auth.signInWithEmailAndPassword(emailInput.value, passwordInput.value)
-    .catch((error) => alert("Erro ao entrar: " + error.message));
-});
+if (loginForm) {
+  loginForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    auth.signInWithEmailAndPassword(emailInput.value, passwordInput.value)
+      .catch((error) => alert("Erro ao entrar: " + error.message));
+  });
+}
 
 // Cadastro de Usuário
-btnRegister.addEventListener("click", () => {
-  if (!emailInput.value || !passwordInput.value) {
-    alert("Preencha e-mail e senha para cadastrar.");
-    return;
-  }
-  
-  const rawPhone = prompt("Digite seu telefone com DDD (ex: 21999998888 ou +5521999998888):") || "";
-  const cleanedPhone = formatPhoneNumber(rawPhone);
+if (btnRegister) {
+  btnRegister.addEventListener("click", () => {
+    if (!emailInput.value || !passwordInput.value) {
+      alert("Preencha e-mail e senha para cadastrar.");
+      return;
+    }
+    
+    const rawPhone = prompt("Digite seu telefone com DDD (ex: 21999998888 ou +5521999998888):") || "";
+    const cleanedPhone = formatPhoneNumber(rawPhone);
 
-  auth.createUserWithEmailAndPassword(emailInput.value, passwordInput.value)
-    .then((cred) => {
-      database.ref(`users/${cred.user.uid}`).set({
-        email: cred.user.email.toLowerCase(),
-        phone: cleanedPhone
-      });
-      alert("Conta criada com sucesso!");
-    })
-    .catch((error) => alert("Erro ao cadastrar: " + error.message));
-});
+    auth.createUserWithEmailAndPassword(emailInput.value, passwordInput.value)
+      .then((cred) => {
+        database.ref(`users/${cred.user.uid}`).set({
+          email: cred.user.email.toLowerCase(),
+          phone: cleanedPhone
+        });
+        alert("Conta criada com sucesso!");
+      })
+      .catch((error) => alert("Erro ao cadastrar: " + error.message));
+  });
+}
 
 // Esqueceu a Senha
 if (btnForgotPassword) {
@@ -131,7 +130,7 @@ if (btnForgotPassword) {
   });
 }
 
-// Login com Google (Com verificação/solicitação de telefone)
+// Login com Google
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 const btnGoogleLogin = document.getElementById("btn-google-login");
 if (btnGoogleLogin) {
@@ -143,7 +142,7 @@ if (btnGoogleLogin) {
         userRef.once('value', (snapshot) => {
           const userData = snapshot.val() || {};
           if (!userData.phone) {
-            const rawPhone = prompt("Bem-vindo! Digite seu telefone com DDD para completar o cadastro (ex: 21999998888):") || "";
+            const rawPhone = prompt("Bem-vindo! Digite seu telefone com DDD (ex: 21999998888):") || "";
             const cleanedPhone = formatPhoneNumber(rawPhone);
             
             userRef.update({ 
@@ -163,7 +162,7 @@ if (btnGoogleLogin) {
   });
 }
 
-// Botão de Atualizar/Cadastrar Telefone Manualmente
+// Atualizar Telefone
 if (btnUpdatePhone) {
   btnUpdatePhone.addEventListener("click", () => {
     const user = auth.currentUser;
@@ -186,18 +185,24 @@ if (btnUpdatePhone) {
   });
 }
 
-btnLogout.addEventListener("click", () => auth.signOut());
+if (btnLogout) btnLogout.addEventListener("click", () => auth.signOut());
 
 // Estado de Autenticação
 auth.onAuthStateChanged((user) => {
   if (user) {
     authScreen.classList.add("hidden");
     mapScreen.classList.remove("hidden");
-    initMap();
+    
+    // Pequeno atraso para garantir renderização correta do container do Leaflet
+    setTimeout(() => {
+      initMap();
+      if (map) map.invalidateSize();
+    }, 100);
+
     startLocationTracking(user.uid);
     listenToFriendships(user.uid);
+    checkInviteUrl();
 
-    // Garante que o e-mail está salvo em letras minúsculas para busca
     if (user.email) {
       database.ref(`users/${user.uid}`).update({ email: user.email.toLowerCase() });
     }
@@ -219,16 +224,20 @@ function initMap() {
     attribution: '© OpenStreetMap'
   }).addTo(map);
 
-  btnRecenter.addEventListener("click", () => {
-    if (userMarker) map.setView(userMarker.getLatLng(), 16);
-  });
+  if (btnRecenter) {
+    btnRecenter.addEventListener("click", () => {
+      if (userMarker) map.setView(userMarker.getLatLng(), 16);
+    });
+  }
 
-  btnMyHistory.addEventListener("click", () => {
-    if (auth.currentUser) drawUserHistory(auth.currentUser.uid, "Meu Trajeto");
-  });
+  if (btnMyHistory) {
+    btnMyHistory.addEventListener("click", () => {
+      if (auth.currentUser) drawUserHistory(auth.currentUser.uid, "Meu Trajeto");
+    });
+  }
 }
 
-// Rastreamento GPS Próprio
+// Rastreamento GPS
 function startLocationTracking(uid) {
   watchId = navigator.geolocation.watchPosition(
     (position) => {
@@ -243,11 +252,7 @@ function startLocationTracking(uid) {
       }
 
       const timestamp = firebase.database.ServerValue.TIMESTAMP;
-
-      // Localização Atual
       database.ref('locations/' + uid).set({ latitude, longitude, timestamp });
-
-      // Histórico
       database.ref(`location_history/${uid}`).push({ latitude, longitude, timestamp });
     },
     (error) => console.error("Erro GPS: ", error),
@@ -255,9 +260,7 @@ function startLocationTracking(uid) {
   );
 }
 
-// --- GERENCIAMENTO DE AMIGOS ---
-
-// Alternar busca por E-mail ou Telefone
+// GERENCIAMENTO DE AMIGOS
 if (friendSearchType) {
   friendSearchType.addEventListener("change", () => {
     if (friendSearchType.value === "email") {
@@ -274,7 +277,6 @@ if (friendSearchType) {
   });
 }
 
-// Enviar Solicitação
 if (addFriendForm) {
   addFriendForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -326,11 +328,10 @@ if (addFriendForm) {
   });
 }
 
-// Escutar Amizades do Usuário
 function listenToFriendships(myUid) {
   database.ref(`friendships/${myUid}`).on('value', (snapshot) => {
-    pendingRequestsList.innerHTML = "";
-    friendsList.innerHTML = "";
+    if (pendingRequestsList) pendingRequestsList.innerHTML = "";
+    if (friendsList) friendsList.innerHTML = "";
     
     Object.keys(otherMarkers).forEach(uid => {
       map.removeLayer(otherMarkers[uid].marker);
@@ -359,6 +360,7 @@ function listenToFriendships(myUid) {
 }
 
 function renderPendingRequest(friendUid, friendIdentifier) {
+  if (!pendingRequestsList) return;
   const item = document.createElement("div");
   item.className = "pending-request-item";
   item.innerHTML = `
@@ -390,6 +392,7 @@ function rejectFriendRequest(friendUid) {
 }
 
 function renderFriendItem(friendUid, friendIdentifier) {
+  if (!friendsList) return;
   const div = document.createElement("div");
   div.className = "friend-item";
   div.id = `friend-item-${friendUid}`;
@@ -403,7 +406,6 @@ function renderFriendItem(friendUid, friendIdentifier) {
   friendsList.appendChild(div);
 }
 
-// Localização em Tempo Real de Amigos
 function listenToFriendLocation(friendUid, friendIdentifier) {
   database.ref(`locations/${friendUid}`).on('value', (snapshot) => {
     const data = snapshot.val();
@@ -443,17 +445,14 @@ function updateLastSeenUI(friendUid, timestamp) {
   }
 }
 
-// Alerta de Proximidade (500m)
 function checkProximityAlert(friendUid, friendIdentifier, friendLat, friendLng) {
   if (!userMarker) return;
   const myPos = userMarker.getLatLng();
   const distance = calculateDistance(myPos.lat, myPos.lng, friendLat, friendLng);
-  const ALARM_RADIUS_METERS = 500;
 
-  if (distance <= ALARM_RADIUS_METERS) {
+  if (distance <= 500) {
     if (!alertedFriends.has(friendUid)) {
       alertedFriends.add(friendUid);
-
       const msg = `${friendIdentifier} está próximo de você (${Math.round(distance)}m)!`;
 
       if ("Notification" in window && Notification.permission === "granted") {
@@ -481,7 +480,6 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Histórico de Trajeto
 function drawUserHistory(targetUid, title = "Trajeto") {
   const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
 
@@ -541,7 +539,7 @@ function drawUserHistory(targetUid, title = "Trajeto") {
     });
 }
 
-// --- SISTEMA DE CONVITE POR LINK / WHATSAPP / E-MAIL ---
+// SISTEMA DE CONVITE
 const btnShareInvite = document.getElementById("btn-share-invite");
 
 if (btnShareInvite) {
@@ -549,7 +547,6 @@ if (btnShareInvite) {
     const user = auth.currentUser;
     if (!user) return;
 
-    // Cria um ID de convite único apontando para o seu UID
     const inviteRef = database.ref('invites').push();
     const inviteId = inviteRef.key;
 
@@ -557,12 +554,10 @@ if (btnShareInvite) {
       fromUid: user.uid,
       createdAt: firebase.database.ServerValue.TIMESTAMP
     }).then(() => {
-      // Cria o link dinâmico baseado na URL atual do seu app
       const baseUrl = window.location.origin + window.location.pathname;
       const inviteUrl = `${baseUrl}?invite=${inviteId}`;
       const message = `Olá! Quero compartilhar minha localização com você no Rio Localizador. Acesse o link para aceitar meu convite: ${inviteUrl}`;
 
-      // Se o navegador suportar o menu nativo de compartilhamento (Celulares)
       if (navigator.share) {
         navigator.share({
           title: 'Convite - Rio Localizador',
@@ -570,15 +565,13 @@ if (btnShareInvite) {
           url: inviteUrl
         }).catch(() => {});
       } else {
-        // Fallback para PC: Copia o link e abre opção de WhatsApp
         navigator.clipboard.writeText(inviteUrl);
-        alert("Link de convite copiado para a área de transferência! Envie para o seu amigo por E-mail ou SMS.\n\nLink: " + inviteUrl);
+        alert("Link de convite copiado para a área de transferência!\n\nLink: " + inviteUrl);
       }
     });
   });
 }
 
-// Escutar se alguém abriu o aplicativo através de um link de convite (?invite=ID)
 function checkInviteUrl() {
   const urlParams = new URLSearchParams(window.location.search);
   const inviteId = urlParams.get('invite');
@@ -590,24 +583,15 @@ function checkInviteUrl() {
         const friendUid = inviteData.fromUid;
         const myUid = auth.currentUser.uid;
 
-        // Aceita a amizade automaticamente para ambos
         const updates = {};
         updates[`/friendships/${myUid}/${friendUid}`] = 'accepted';
         updates[`/friendships/${friendUid}/${myUid}`] = 'accepted';
 
         database.ref().update(updates).then(() => {
-          alert(" Convite aceito! Vocês agora compartilham a localização.");
-          // Limpa a URL removendo o parâmetro do convite
+          alert("Convite aceito! Vocês agora compartilham a localização.");
           window.history.replaceState({}, document.title, window.location.pathname);
         });
       }
     });
   }
 }
-
-// Executa a checagem do convite sempre que o usuário fizer login no app
-auth.onAuthStateChanged((user) => {
-  if (user) {
-    checkInviteUrl();
-  }
-});
