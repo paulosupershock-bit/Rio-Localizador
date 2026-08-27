@@ -603,3 +603,9 @@ html, body {
   margin-top: 6px;
 }
 
+#friend-search-type {
+  background-color: #f8f9fa;
+  font-size: 14px;
+  color: #333;
+  outline: none;
+}

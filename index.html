@@ -106,21 +106,21 @@
 
       <div class="drawer-content">
 
-        <!-- Adicionar Amigo -->
+        <!-- Adicionar Amigo (E-mail ou Telefone) -->
+<section class="drawer-section">
+  <h3>Adicionar Amigo</h3>
+  <form id="add-friend-form">
+    <select id="friend-search-type" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;">
+      <option value="email">Buscar por E-mail</option>
+      <option value="phone">Buscar por Telefone</option>
+    </select>
 
-        <section class="drawer-section">
+    <input type="email" id="friend-email-input" placeholder="E-mail do contato..." required />
+    <input type="tel" id="friend-phone-input" class="hidden" placeholder="Ex: 21999998888 (com DDD)" />
 
-          <h3>Adicionar Amigo</h3>
-
-          <form id="add-friend-form">
-
-            <input type="email" id="friend-email-input" placeholder="E-mail do contato..." required />
-
-            <button type="submit">Enviar Pedido</button>
-
-          </form>
-
-        </section>
+    <button type="submit">Enviar Pedido</button>
+  </form>
+</section>
 
 
 

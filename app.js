@@ -39,7 +39,9 @@ const btnCloseDrawer = document.getElementById("btn-close-drawer");
 const drawer = document.getElementById("drawer");
 const overlay = document.getElementById("drawer-overlay");
 const addFriendForm = document.getElementById("add-friend-form");
+const friendSearchType = document.getElementById("friend-search-type");
 const friendEmailInput = document.getElementById("friend-email-input");
+const friendPhoneInput = document.getElementById("friend-phone-input");
 const pendingRequestsList = document.getElementById("pending-requests-list");
 const friendsList = document.getElementById("friends-list");
 const btnMyHistory = document.getElementById("btn-toggle-history");
@@ -77,16 +79,21 @@ loginForm.addEventListener("submit", (e) => {
     .catch((error) => alert("Erro ao entrar: " + error.message));
 });
 
+// Cadastro de Usuário (salvando e-mail e telefone)
 btnRegister.addEventListener("click", () => {
   if (!emailInput.value || !passwordInput.value) {
     alert("Preencha e-mail e senha para cadastrar.");
     return;
   }
+  
+  const phone = prompt("Digite seu número de telefone com DDD (somente números, ex: 21999998888):") || "";
+  const cleanedPhone = phone.replace(/\D/g, "");
+
   auth.createUserWithEmailAndPassword(emailInput.value, passwordInput.value)
     .then((cred) => {
-      // Salva usuário no banco
       database.ref(`users/${cred.user.uid}`).set({
-        email: cred.user.email
+        email: cred.user.email,
+        phone: cleanedPhone
       });
       alert("Conta criada com sucesso!");
     })
@@ -100,7 +107,7 @@ if (btnForgotPassword) {
       return;
     }
     auth.sendPasswordResetEmail(emailInput.value)
-      .then(() => alert("E-mail de redefinição enviado! Check sua caixa de entrada."))
+      .then(() => alert("E-mail de redefinição enviado! Cheque sua caixa de entrada."))
       .catch((error) => alert("Erro: " + error.message));
   });
 }
@@ -111,7 +118,7 @@ if (btnGoogleLogin) {
   btnGoogleLogin.addEventListener("click", () => {
     auth.signInWithPopup(googleProvider)
       .then((result) => {
-        database.ref(`users/${result.user.uid}`).set({ email: result.user.email });
+        database.ref(`users/${result.user.uid}`).update({ email: result.user.email });
       })
       .catch((error) => {
         if (error.code !== "auth/popup-closed-by-user") {
@@ -187,14 +194,46 @@ function startLocationTracking(uid) {
 
 // --- GERENCIAMENTO DE AMIGOS E SOLICITAÇÕES ---
 
+// Alternar entre busca por E-mail e Telefone
+if (friendSearchType) {
+  friendSearchType.addEventListener("change", () => {
+    if (friendSearchType.value === "email") {
+      friendEmailInput.classList.remove("hidden");
+      friendEmailInput.required = true;
+      friendPhoneInput.classList.add("hidden");
+      friendPhoneInput.required = false;
+    } else {
+      friendEmailInput.classList.add("hidden");
+      friendEmailInput.required = false;
+      friendPhoneInput.classList.remove("hidden");
+      friendPhoneInput.required = true;
+    }
+  });
+}
+
+// Enviar Solicitação de Amizade (E-mail ou Telefone)
 if (addFriendForm) {
   addFriendForm.addEventListener("submit", (e) => {
     e.preventDefault();
-    const targetEmail = friendEmailInput.value.trim().toLowerCase();
-    if (!targetEmail) return;
 
-    // Buscar UID do e-mail digitado
-    database.ref('users').orderByChild('email').equalTo(targetEmail).once('value', (snapshot) => {
+    const searchType = friendSearchType ? friendSearchType.value : "email";
+    let queryRef;
+
+    if (searchType === "email") {
+      const targetEmail = friendEmailInput.value.trim().toLowerCase();
+      if (!targetEmail) return;
+      queryRef = database.ref('users').orderByChild('email').equalTo(targetEmail);
+    } else {
+      const targetPhone = friendPhoneInput.value.replace(/\D/g, ""); // Limpa caracteres não numéricos
+      if (!targetPhone) {
+        alert("Digite um número de telefone válido.");
+        return;
+      }
+      queryRef = database.ref('users').orderByChild('phone').equalTo(targetPhone);
+    }
+
+    // Buscar usuário no Firebase
+    queryRef.once('value', (snapshot) => {
       if (!snapshot.exists()) {
         alert("Usuário não encontrado.");
         return;
@@ -215,7 +254,8 @@ if (addFriendForm) {
       database.ref().update(updates)
         .then(() => {
           alert("Solicitação enviada!");
-          friendEmailInput.value = "";
+          if (friendEmailInput) friendEmailInput.value = "";
+          if (friendPhoneInput) friendPhoneInput.value = "";
         })
         .catch(err => alert("Erro ao enviar: " + err.message));
     });
@@ -242,25 +282,25 @@ function listenToFriendships(myUid) {
       // Buscar nome/email do amigo
       database.ref(`users/${friendUid}`).once('value', (userSnap) => {
         const userData = userSnap.val() || {};
-        const friendEmail = userData.email || friendUid;
+        const friendIdentifier = userData.email || userData.phone || friendUid;
 
         if (status === "pending_received") {
-          renderPendingRequest(friendUid, friendEmail);
+          renderPendingRequest(friendUid, friendIdentifier);
         } else if (status === "accepted") {
-          renderFriendItem(friendUid, friendEmail);
-          listenToFriendLocation(friendUid, friendEmail);
+          renderFriendItem(friendUid, friendIdentifier);
+          listenToFriendLocation(friendUid, friendIdentifier);
         }
       });
     });
   });
 }
 
-// 2. Ações de Aceitar / Recusar no HTML
-function renderPendingRequest(friendUid, friendEmail) {
+// Ações de Aceitar / Recusar no HTML
+function renderPendingRequest(friendUid, friendIdentifier) {
   const item = document.createElement("div");
   item.className = "pending-request-item";
   item.innerHTML = `
-    <span><strong>${friendEmail}</strong> quer compartilhar a localização.</span>
+    <span><strong>${friendIdentifier}</strong> quer compartilhar a localização.</span>
     <div>
       <button class="btn-accept" onclick="acceptFriendRequest('${friendUid}')">Aceitar</button>
       <button class="btn-danger" onclick="rejectFriendRequest('${friendUid}')">Recusar</button>
@@ -288,22 +328,22 @@ function rejectFriendRequest(friendUid) {
 }
 
 // Renderiza Contato na Lista com status de horário
-function renderFriendItem(friendUid, friendEmail) {
+function renderFriendItem(friendUid, friendIdentifier) {
   const div = document.createElement("div");
   div.className = "friend-item";
   div.id = `friend-item-${friendUid}`;
   div.innerHTML = `
     <div class="friend-info">
-      <strong>${friendEmail}</strong>
+      <strong>${friendIdentifier}</strong>
       <small id="time-status-${friendUid}" class="time-status">Aguardando dados...</small>
     </div>
-    <button class="btn-history-small" onclick="drawUserHistory('${friendUid}', '${friendEmail}')">Ver Rota</button>
+    <button class="btn-history-small" onclick="drawUserHistory('${friendUid}', '${friendIdentifier}')">Ver Rota</button>
   `;
   friendsList.appendChild(div);
 }
 
-// 3. Monitora GPS de Amigos e exibe tempo de atualização
-function listenToFriendLocation(friendUid, friendEmail) {
+// Monitora GPS de Amigos e exibe tempo de atualização
+function listenToFriendLocation(friendUid, friendIdentifier) {
   database.ref(`locations/${friendUid}`).on('value', (snapshot) => {
     const data = snapshot.val();
     if (!data) return;
@@ -313,7 +353,7 @@ function listenToFriendLocation(friendUid, friendEmail) {
 
     // Atualiza/Cria Marcador
     if (!otherMarkers[friendUid]) {
-      const marker = L.marker(latLng).addTo(map).bindPopup(`<b>${friendEmail}</b>`);
+      const marker = L.marker(latLng).addTo(map).bindPopup(`<b>${friendIdentifier}</b>`);
       otherMarkers[friendUid] = { marker, latLng };
     } else {
       otherMarkers[friendUid].marker.setLatLng(latLng);
@@ -323,8 +363,8 @@ function listenToFriendLocation(friendUid, friendEmail) {
     // Atualiza Data/Hora na Lista
     updateLastSeenUI(friendUid, timestamp);
 
-    // 1. Alerta de Proximidade (Raio de 500m)
-    checkProximityAlert(friendUid, friendEmail, latitude, longitude);
+    // Alerta de Proximidade (Raio de 500m)
+    checkProximityAlert(friendUid, friendIdentifier, latitude, longitude);
   });
 }
 
@@ -347,8 +387,8 @@ function updateLastSeenUI(friendUid, timestamp) {
   }
 }
 
-// 1. Notificação de Proximidade (Raio 500m)
-function checkProximityAlert(friendUid, friendEmail, friendLat, friendLng) {
+// Notificação de Proximidade (Raio 500m)
+function checkProximityAlert(friendUid, friendIdentifier, friendLat, friendLng) {
   if (!userMarker) return;
   const myPos = userMarker.getLatLng();
   const distance = calculateDistance(myPos.lat, myPos.lng, friendLat, friendLng);
@@ -358,7 +398,7 @@ function checkProximityAlert(friendUid, friendEmail, friendLat, friendLng) {
     if (!alertedFriends.has(friendUid)) {
       alertedFriends.add(friendUid); // Evita múltiplos alertas no mesmo raio
 
-      const msg = `${friendEmail} está próximo de você (${Math.round(distance)}m)!`;
+      const msg = `${friendIdentifier} está próximo de você (${Math.round(distance)}m)!`;
 
       if ("Notification" in window && Notification.permission === "granted") {
         new Notification("Amigo Próximo!", { body: msg });
@@ -386,11 +426,10 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// 4. Trajeto dos últimos 30 dias no Mapa (VERSÃO CORRIGIDA)
+// Trajeto dos últimos 30 dias no Mapa
 function drawUserHistory(targetUid, title = "Trajeto") {
   const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
 
-  // Leitura direta do nó do usuário sem forçar filtro por servidor (evita travamento por falta de índice)
   database.ref(`location_history/${targetUid}`).once('value')
     .then((snapshot) => {
       if (!snapshot.exists()) {
@@ -403,7 +442,6 @@ function drawUserHistory(targetUid, title = "Trajeto") {
       snapshot.forEach((child) => {
         const val = child.val();
         
-        // Garante que as coordenadas e o timestamp são válidos
         if (
           val &&
           typeof val.latitude === 'number' &&
@@ -426,7 +464,6 @@ function drawUserHistory(targetUid, title = "Trajeto") {
         return;
       }
 
-      // Tratamento para 1 único ponto (evita erro no Leaflet)
       if (latLngs.length === 1) {
         map.setView(latLngs[0], 16);
         L.popup()
@@ -434,7 +471,6 @@ function drawUserHistory(targetUid, title = "Trajeto") {
           .setContent(`<b>Único ponto registrado de ${title}</b>`)
           .openOn(map);
       } else {
-        // Desenha a linha da rota para 2 ou mais pontos
         currentPolyline = L.polyline(latLngs, { 
           color: '#0052d4', 
           weight: 5, 
