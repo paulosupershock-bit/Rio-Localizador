@@ -8,114 +8,134 @@
 html, body {
   width: 100%;
   height: 100vh;
-  margin: 0;
-  padding: 0;
   overflow: hidden;
+  background-color: #f0f2f5;
 }
 
+/* Regra critical para esconder telas completamente */
 .hidden {
   display: none !important;
 }
 
-/* --- Tela de Login Centralizada --- */
+/* --- TELA DE LOGIN --- */
 #auth-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100vw;
   height: 100vh;
+  z-index: 9999;
+  background: linear-gradient(135deg, #0052d4, #4364f7, #6fb1fc);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0052d4, #4364f7, #6fb1fc);
+  padding: 20px;
 }
 
 .auth-box {
   background: #ffffff;
   padding: 30px;
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   width: 100%;
-  max-width: 400px;
+  max-width: 380px;
   text-align: center;
 }
 
 .auth-box h1 {
   color: #1a1a1a;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   font-size: 24px;
 }
 
 .auth-box p {
   color: #666;
-  font-size: 14px;
-  margin-bottom: 24px;
+  font-size: 13px;
+  margin-bottom: 20px;
 }
 
-.auth-box input {
+.auth-box input, .auth-box select {
   width: 100%;
   padding: 12px;
-  margin-bottom: 12px;
-  border: 1px solid #ddd;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
   border-radius: 6px;
-  font-size: 16px;
+  font-size: 14px;
 }
 
-.auth-box button {
+.btn-primary {
   width: 100%;
   padding: 12px;
   border: none;
   border-radius: 6px;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: bold;
   cursor: pointer;
   background-color: #0052d4;
   color: white;
   margin-bottom: 8px;
-  transition: background 0.2s;
 }
 
-.auth-box button:hover {
+.btn-primary:hover {
   background-color: #003db3;
 }
 
-.auth-box .btn-secondary {
+.btn-secondary {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
   background-color: #e4e6eb;
   color: #050505;
+  margin-bottom: 8px;
 }
 
-.auth-box .btn-secondary:hover {
+.btn-secondary:hover {
   background-color: #d8dadf;
 }
 
 .btn-link {
-  background: none !important;
-  color: #0052d4 !important;
-  font-size: 13px !important;
+  background: none;
+  border: none;
+  color: #0052d4;
+  font-size: 13px;
   text-decoration: underline;
-  margin-top: 8px;
   cursor: pointer;
+  margin: 6px 0;
+  display: inline-block;
 }
 
 .divider {
-  margin: 15px 0;
-  color: #888;
-  font-size: 14px;
+  margin: 12px 0;
+  color: #777;
+  font-size: 13px;
 }
 
 .btn-google {
-  background-color: #4285F4 !important;
-  color: white !important;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  background-color: #4285F4;
+  color: white;
 }
 
 .btn-google:hover {
-  background-color: #3367D6 !important;
+  background-color: #3367D6;
 }
 
-/* --- Tela do Mapa --- */
+/* --- TELA DO MAPA --- */
 #map-screen {
   width: 100vw;
   height: 100vh;
+  position: relative;
   display: flex;
   flex-direction: column;
-  position: relative;
 }
 
 .app-header {
@@ -126,12 +146,13 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  z-index: 1001;
 }
 
 .app-header h2 {
   font-size: 18px;
+  font-weight: 600;
 }
 
 .btn-icon {
@@ -140,44 +161,50 @@ html, body {
   color: white;
   font-size: 24px;
   cursor: pointer;
+  padding: 4px;
 }
 
-.btn-small {
+.btn-header-logout {
   background: transparent;
   border: 1px solid white;
   color: white;
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 4px;
   cursor: pointer;
+  font-size: 13px;
 }
 
 #map {
-  flex: 1;
   width: 100%;
   height: calc(100vh - 56px);
   z-index: 1;
 }
 
-.btn-floating {
+/* BOTÃO DE CENTRALIZAR POSIÇÃO (DART/ALVO) */
+.btn-recenter {
   position: absolute;
-  bottom: 20px;
+  bottom: 30px;
   right: 20px;
   z-index: 1000;
-  width: 50px;
-  height: 50px;
-  background-color: #ffffff;
-  color: #0052d4;
-  border: none;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  font-size: 20px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  background-color: #ffffff;
+  border: 2px solid rgba(0,0,0,0.1);
+  font-size: 24px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.2s;
 }
 
-/* --- Drawer / Menu Lateral --- */
+.btn-recenter:active {
+  transform: scale(0.92);
+}
+
+/* --- MENU LATERAL (DRAWER) --- */
 .drawer-overlay {
   position: fixed;
   top: 0;
@@ -185,21 +212,21 @@ html, body {
   width: 100vw;
   height: 100vh;
   background-color: rgba(0, 0, 0, 0.5);
-  z-index: 1050;
+  z-index: 2000;
 }
 
 .drawer {
   position: fixed;
   top: 0;
-  left: -300px;
-  width: 280px;
+  left: -320px;
+  width: 300px;
   height: 100vh;
   background-color: #ffffff;
-  z-index: 1100;
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.2);
+  z-index: 2001;
+  box-shadow: 3px 0 12px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
-  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: left 0.3s ease;
 }
 
 .drawer.open {
@@ -223,83 +250,33 @@ html, body {
 }
 
 .drawer-section {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 15px;
 }
 
 .drawer-section h4 {
-  font-size: 14px;
+  font-size: 13px;
   color: #666;
   text-transform: uppercase;
   margin-bottom: 10px;
 }
 
-.drawer-section input, .drawer-section select {
+.btn-drawer-action {
   width: 100%;
   padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
   margin-bottom: 8px;
-  font-size: 14px;
-}
-
-.drawer-section button {
-  padding: 10px;
+  border: 1px solid #ddd;
   border-radius: 6px;
+  background: #f8f9fa;
   cursor: pointer;
-}
-
-.friend-item, .pending-request-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px;
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 6px;
-  margin-bottom: 8px;
-}
-
-.friend-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.friend-info strong {
   font-size: 13px;
-  color: #333;
+  text-align: left;
 }
 
-.time-status {
-  font-size: 11px;
-}
-
-.time-status.online {
-  color: #2e7d32;
-}
-
-.time-status.outdated {
-  color: #c62828;
+.btn-whatsapp {
+  background-color: #25D366 !important;
+  color: white !important;
+  border: none !important;
   font-weight: bold;
-}
-
-.btn-history-small {
-  padding: 6px 10px !important;
-  font-size: 11px !important;
-  width: auto !important;
-  background-color: #0052d4 !important;
-  color: white;
-  border: none;
-}
-
-.btn-accept {
-  background-color: #2e7d32 !important;
-  color: white;
-  border: none;
-}
-
-.pending-request-item div {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
 }

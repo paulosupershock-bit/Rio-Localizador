@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rio Localizador</title>
-  
-  <!-- CSS do Leaflet (Mapa) -->
+
+  <!-- Leaflet CSS (Mapa) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- Seu CSS -->
-  <link rel="stylesheet" href="style.css">
+  <!-- Estilos Customizados -->
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
@@ -21,9 +21,9 @@
       <form id="login-form">
         <input type="email" id="email" placeholder="E-mail" required />
         <input type="password" id="password" placeholder="Senha" required />
-        <button type="submit">Entrar</button>
+        <button type="submit" class="btn-primary">Entrar</button>
       </form>
-      
+
       <button type="button" id="btn-register" class="btn-secondary">Cadastrar</button>
       <button type="button" id="btn-forgot-password" class="btn-link">Esqueceu a senha?</button>
       
@@ -37,30 +37,30 @@
   <div id="map-screen" class="hidden">
     <!-- Cabeçalho -->
     <header class="app-header">
-      <button id="btn-open-drawer" class="btn-icon">☰</button>
+      <button id="btn-open-drawer" class="btn-icon" title="Abrir Menu">☰</button>
       <h2>Rio Localizador</h2>
-      <button id="btn-logout" class="btn-small">Sair</button>
+      <button id="btn-logout" class="btn-header-logout">Sair</button>
     </header>
 
     <!-- Container do Mapa -->
     <div id="map"></div>
 
-    <!-- Botão Flutuante de Centralizar (Aparece no canto inferior direito) -->
-    <button id="btn-recenter" class="btn-floating" title="Minha Posição">🎯</button>
+    <!-- Botão Flutuante de Centralizar no canto inferior direito -->
+    <button id="btn-recenter" class="btn-recenter" title="Minha Posição">🎯</button>
   </div>
 
   <!-- MENU LATERAL (DRAWER) -->
   <div id="drawer-overlay" class="drawer-overlay hidden"></div>
   <aside id="drawer" class="drawer">
     <div class="drawer-header">
-      <h3>Menu</h3>
+      <h3>Menu Principal</h3>
       <button id="btn-close-drawer" class="btn-icon">✕</button>
     </div>
     <div class="drawer-content">
       <div class="drawer-section">
-        <button id="btn-toggle-history" class="btn-secondary" style="width: 100%;">Meu Trajeto (30 dias)</button>
-        <button id="btn-update-phone" class="btn-secondary" style="width: 100%; margin-top: 8px;">Cadastrar/Alterar Telefone</button>
-        <button id="btn-share-invite" class="btn-secondary" style="width: 100%; margin-top: 8px; background-color: #25D366; color: white;">Gerar Convite de Amizade</button>
+        <button id="btn-toggle-history" class="btn-drawer-action">Meu Trajeto (30 dias)</button>
+        <button id="btn-update-phone" class="btn-drawer-action">Cadastrar/Alterar Telefone</button>
+        <button id="btn-share-invite" class="btn-drawer-action btn-whatsapp">Gerar Convite de Amizade</button>
       </div>
 
       <div class="drawer-section">
@@ -72,7 +72,7 @@
           </select>
           <input type="email" id="friend-email-input" placeholder="E-mail do amigo" required />
           <input type="tel" id="friend-phone-input" placeholder="Telefone (ex: 21999998888)" class="hidden" />
-          <button type="submit" style="width: 100%; background-color: #0052d4; color: white; border: none; margin-top: 4px;">Enviar Pedido</button>
+          <button type="submit" class="btn-primary">Enviar Pedido</button>
         </form>
       </div>
 
@@ -88,13 +88,13 @@
     </div>
   </aside>
 
-  <!-- Firebase Scripts -->
+  <!-- SDKs do Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Seu Script JS -->
+  <!-- Código da Aplicação -->
   <script src="app.js"></script>
 </body>
 </html>
