@@ -38,13 +38,14 @@ const btnOpenDrawer = document.getElementById("btn-open-drawer");
 const btnCloseDrawer = document.getElementById("btn-close-drawer");
 const drawer = document.getElementById("drawer");
 const overlay = document.getElementById("drawer-overlay");
-const addFriendForm = document.getElementById("add-friend-form");
+const addFriendForm = document.getElementById("add-friend-email-form");
 const friendEmailInput = document.getElementById("friend-email-input");
 const addFriendPhoneForm = document.getElementById("add-friend-phone-form");
 const friendPhoneInput = document.getElementById("friend-phone-input");
 const pendingRequestsList = document.getElementById("pending-requests-list");
 const friendsList = document.getElementById("friends-list");
 const btnMyHistory = document.getElementById("btn-toggle-history");
+const btnShareWhatsapp = document.getElementById("btn-share-whatsapp");
 
 // --- CONTROLE DO MENU LATERAL ---
 function openDrawer() {
@@ -57,9 +58,9 @@ function closeDrawer() {
   overlay.classList.add("hidden");
 }
 
-btnOpenDrawer.addEventListener("click", openDrawer);
-btnCloseDrawer.addEventListener("click", closeDrawer);
-overlay.addEventListener("click", closeDrawer);
+if (btnOpenDrawer) btnOpenDrawer.addEventListener("click", openDrawer);
+if (btnCloseDrawer) btnCloseDrawer.addEventListener("click", closeDrawer);
+if (overlay) overlay.addEventListener("click", closeDrawer);
 
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && drawer.classList.contains('open')) {
@@ -86,7 +87,6 @@ btnRegister.addEventListener("click", () => {
   }
   auth.createUserWithEmailAndPassword(emailInput.value, passwordInput.value)
     .then((cred) => {
-      // Salva usuário no banco
       database.ref(`users/${cred.user.uid}`).set({
         email: cred.user.email
       });
@@ -102,7 +102,7 @@ if (btnForgotPassword) {
       return;
     }
     auth.sendPasswordResetEmail(emailInput.value)
-      .then(() => alert("E-mail de redefinição enviado! Check sua caixa de entrada."))
+      .then(() => alert("E-mail de redefinição enviado! Cheque sua caixa de entrada."))
       .catch((error) => alert("Erro: " + error.message));
   });
 }
@@ -131,6 +131,12 @@ auth.onAuthStateChanged((user) => {
     authScreen.classList.add("hidden");
     mapScreen.classList.remove("hidden");
     initMap();
+    
+    // Força o Leaflet a recalcular as dimensões após sair da tela oculta
+    setTimeout(() => {
+      if (map) map.invalidateSize();
+    }, 200);
+
     startLocationTracking(user.uid);
     listenToFriendships(user.uid);
   } else {
@@ -151,18 +157,21 @@ function initMap() {
     attribution: '© OpenStreetMap'
   }).addTo(map);
 
-  btnRecenter.addEventListener("click", () => {
-    if (userMarker) map.setView(userMarker.getLatLng(), 16);
-  });
+  if (btnRecenter) {
+    btnRecenter.addEventListener("click", () => {
+      if (userMarker) map.setView(userMarker.getLatLng(), 16);
+    });
+  }
 
-  btnMyHistory.addEventListener("click", () => {
-    if (auth.currentUser) drawUserHistory(auth.currentUser.uid, "Meu Trajeto");
-  });
+  if (btnMyHistory) {
+    btnMyHistory.addEventListener("click", () => {
+      if (auth.currentUser) drawUserHistory(auth.currentUser.uid, "Meu Trajeto");
+    });
+  }
 }
 
 // Rastreamento GPS Próprio com Fallback para IP
 function startLocationTracking(uid) {
-  // Tenta obter a localização de alta precisão via GPS
   watchId = navigator.geolocation.watchPosition(
     (position) => {
       const { latitude, longitude } = position.coords;
@@ -170,20 +179,17 @@ function startLocationTracking(uid) {
     },
     (error) => {
       console.warn("Falha no GPS (" + error.message + "). Tentando geolocalização por IP...");
-      // Se o GPS falhar ou for negado, busca por IP
       getLocationByIP(uid);
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
 }
 
-// Consulta a API gratuita ipapi.co para pegar a posição aproximada da rede
 function getLocationByIP(uid) {
   fetch('https://ipapi.co/json/')
     .then(response => response.json())
     .then(data => {
       if (data.latitude && data.longitude) {
-        console.log(`Localização por IP obtida (${data.city}, ${data.region})`);
         processUserLocation(uid, data.latitude, data.longitude, "IP (Aproximado)");
       } else {
         alert("Não foi possível obter sua localização nem via GPS nem via IP.");
@@ -191,17 +197,15 @@ function getLocationByIP(uid) {
     })
     .catch(err => {
       console.error("Erro ao buscar IP:", err);
-      alert("Erro ao conectar ao serviço de geolocalização por IP.");
     });
 }
 
-// Atualiza o mapa e salva as coordenadas no Firebase
 function processUserLocation(uid, latitude, longitude, sourceLabel) {
   const latLng = [latitude, longitude];
 
   if (!userMarker) {
     userMarker = L.marker(latLng).addTo(map).bindPopup(`Você está aqui (${sourceLabel})`);
-    map.setView(latLng, sourceLabel === "GPS" ? 15 : 12); // Zoom menor se for via IP
+    map.setView(latLng, sourceLabel === "GPS" ? 15 : 12);
   } else {
     userMarker.setLatLng(latLng);
     userMarker.getPopup().setContent(`Você está aqui (${sourceLabel})`);
@@ -209,7 +213,6 @@ function processUserLocation(uid, latitude, longitude, sourceLabel) {
 
   const timestamp = firebase.database.ServerValue.TIMESTAMP;
 
-  // Localização Atual
   database.ref('locations/' + uid).set({
     latitude,
     longitude,
@@ -217,7 +220,6 @@ function processUserLocation(uid, latitude, longitude, sourceLabel) {
     timestamp
   });
 
-  // Histórico
   database.ref(`location_history/${uid}`).push({
     latitude,
     longitude,
@@ -225,34 +227,10 @@ function processUserLocation(uid, latitude, longitude, sourceLabel) {
     timestamp
   });
 }
+
 // --- GERENCIAMENTO DE AMIGOS E SOLICITAÇÕES ---
 
-if (addFriendForm) {
-  addFriendForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const targetEmail = friendEmailInput.value.trim().toLowerCase();
-    if (!targetEmail) return;
-
-    // Buscar UID do e-mail digitado
-    database.ref('users').orderByChild('email').equalTo(targetEmail).once('value', (snapshot) => {
-      if (!snapshot.exists()) {
-        alert("Usuário não encontrado.");
-        return;
-      }
-// --- ADICIONAR POR TELEFONE ---
-const addFriendPhoneForm = document.getElementById("add-friend-phone-form");
-const friendPhoneInput = document.getElementById("friend-phone-input");
-
-if (addFriendPhoneForm) {
-  addFriendPhoneForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    // Limpa parênteses, traços e espaços mantendo apenas números e o +
-    const phone = friendPhoneInput.value.trim().replace(/[^\d+]/g, '');
-    searchAndSendRequest("phone", phone, friendPhoneInput);
-  });
-}
-
-// Função genérica de busca no Firebase
+// Função genérica de busca no Firebase por E-mail ou Telefone
 function searchAndSendRequest(field, value, inputElement) {
   if (!value) return;
 
@@ -283,26 +261,19 @@ function searchAndSendRequest(field, value, inputElement) {
   });
 }
 
+if (addFriendForm) {
+  addFriendForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const targetEmail = friendEmailInput.value.trim().toLowerCase();
+    searchAndSendRequest("email", targetEmail, friendEmailInput);
+  });
+}
 
-      let friendUid = null;
-      snapshot.forEach(child => { friendUid = child.key; });
-
-      if (friendUid === auth.currentUser.uid) {
-        alert("Você não pode adicionar a si mesmo.");
-        return;
-      }
-
-      const updates = {};
-      updates[`/friendships/${auth.currentUser.uid}/${friendUid}`] = "pending_sent";
-      updates[`/friendships/${friendUid}/${auth.currentUser.uid}`] = "pending_received";
-
-      database.ref().update(updates)
-        .then(() => {
-          alert("Solicitação enviada!");
-          friendEmailInput.value = "";
-        })
-        .catch(err => alert("Erro ao enviar: " + err.message));
-    });
+if (addFriendPhoneForm) {
+  addFriendPhoneForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const phone = friendPhoneInput.value.trim().replace(/[^\d+]/g, '');
+    searchAndSendRequest("phone", phone, friendPhoneInput);
   });
 }
 
@@ -310,8 +281,7 @@ function listenToFriendships(myUid) {
   database.ref(`friendships/${myUid}`).on('value', (snapshot) => {
     pendingRequestsList.innerHTML = "";
     friendsList.innerHTML = "";
-    
-    // Limpar marcadores de amigos antigos antes de reescutar
+
     Object.keys(otherMarkers).forEach(uid => {
       map.removeLayer(otherMarkers[uid].marker);
       delete otherMarkers[uid];
@@ -323,7 +293,6 @@ function listenToFriendships(myUid) {
       const friendUid = child.key;
       const status = child.val();
 
-      // Buscar nome/email do amigo
       database.ref(`users/${friendUid}`).once('value', (userSnap) => {
         const userData = userSnap.val() || {};
         const friendEmail = userData.email || friendUid;
@@ -339,7 +308,6 @@ function listenToFriendships(myUid) {
   });
 }
 
-// 2. Ações de Aceitar / Recusar no HTML
 function renderPendingRequest(friendUid, friendEmail) {
   const item = document.createElement("div");
   item.className = "pending-request-item";
@@ -371,7 +339,6 @@ function rejectFriendRequest(friendUid) {
   database.ref().update(updates);
 }
 
-// Renderiza Contato na Lista com status de horário
 function renderFriendItem(friendUid, friendEmail) {
   const div = document.createElement("div");
   div.className = "friend-item";
@@ -386,7 +353,6 @@ function renderFriendItem(friendUid, friendEmail) {
   friendsList.appendChild(div);
 }
 
-// 3. Monitora GPS de Amigos e exibe tempo de atualização
 function listenToFriendLocation(friendUid, friendEmail) {
   database.ref(`locations/${friendUid}`).on('value', (snapshot) => {
     const data = snapshot.val();
@@ -395,7 +361,6 @@ function listenToFriendLocation(friendUid, friendEmail) {
     const { latitude, longitude, timestamp } = data;
     const latLng = [latitude, longitude];
 
-    // Atualiza/Cria Marcador
     if (!otherMarkers[friendUid]) {
       const marker = L.marker(latLng).addTo(map).bindPopup(`<b>${friendEmail}</b>`);
       otherMarkers[friendUid] = { marker, latLng };
@@ -404,10 +369,7 @@ function listenToFriendLocation(friendUid, friendEmail) {
       otherMarkers[friendUid].latLng = latLng;
     }
 
-    // Atualiza Data/Hora na Lista
     updateLastSeenUI(friendUid, timestamp);
-
-    // 1. Alerta de Proximidade (Raio de 500m)
     checkProximityAlert(friendUid, friendEmail, latitude, longitude);
   });
 }
@@ -431,7 +393,6 @@ function updateLastSeenUI(friendUid, timestamp) {
   }
 }
 
-// 1. Notificação de Proximidade (Raio 500m)
 function checkProximityAlert(friendUid, friendEmail, friendLat, friendLng) {
   if (!userMarker) return;
   const myPos = userMarker.getLatLng();
@@ -440,8 +401,7 @@ function checkProximityAlert(friendUid, friendEmail, friendLat, friendLng) {
 
   if (distance <= ALARM_RADIUS_METERS) {
     if (!alertedFriends.has(friendUid)) {
-      alertedFriends.add(friendUid); // Evita múltiplos alertas no mesmo raio
-
+      alertedFriends.add(friendUid);
       const msg = `${friendEmail} está próximo de você (${Math.round(distance)}m)!`;
 
       if ("Notification" in window && Notification.permission === "granted") {
@@ -451,11 +411,10 @@ function checkProximityAlert(friendUid, friendEmail, friendLat, friendLng) {
       }
     }
   } else {
-    alertedFriends.delete(friendUid); // Reseta se o amigo se afastar
+    alertedFriends.delete(friendUid);
   }
 }
 
-// Função de cálculo de distância (Haversine)
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3;
   const φ1 = lat1 * Math.PI / 180;
@@ -470,7 +429,6 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// 4. Trajeto dos últimos 30 dias no Mapa
 function drawUserHistory(targetUid, title) {
   const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
 
@@ -487,29 +445,6 @@ function drawUserHistory(targetUid, title) {
         }
       });
 
-// --- COMPARTILHAMENTO E CONVITE VIA WHATSAPP ---
-const btnShareWhatsapp = document.getElementById("btn-share-whatsapp");
-
-if (btnShareWhatsapp) {
-  btnShareWhatsapp.addEventListener("click", () => {
-    const user = auth.currentUser;
-    if (!user) {
-      alert("Você precisa estar logado para enviar convites.");
-      return;
-    }
-
-    // Mensagem amigável com o e-mail de quem está convidando
-    const userEmail = user.email;
-    const message = `Olá! Estou usando o Rio Localizador para compartilhar minha localização no mapa.\n\nAdicione meu e-mail no aplicativo para me acompanhar: *${userEmail}*\n\nAcesse o app aqui: ${window.location.href}`;
-
-    // Cria o link seguro do WhatsApp
-    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
-
-    // Abre o WhatsApp no navegador ou app mobile
-    window.open(whatsappUrl, "_blank");
-  });
-}
-
       if (currentPolyline) {
         map.removeLayer(currentPolyline);
       }
@@ -523,4 +458,21 @@ if (btnShareWhatsapp) {
         alert(`Nenhum trajeto registrado nos últimos 30 dias para ${title}.`);
       }
     });
+}
+
+// WhatsApp Share Button
+if (btnShareWhatsapp) {
+  btnShareWhatsapp.addEventListener("click", () => {
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Você precisa estar logado para enviar convites.");
+      return;
+    }
+
+    const userEmail = user.email;
+    const message = `Olá! Estou usando o Rio Localizador para compartilhar minha localização no mapa.\n\nAdicione meu e-mail no aplicativo para me acompanhar: *${userEmail}*\n\nAcesse o app aqui: ${window.location.href}`;
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+
+    window.open(whatsappUrl, "_blank");
+  });
 }
