@@ -180,7 +180,7 @@ html, body {
   z-index: 1;
 }
 
-/* BOTÃO FLUTUANTE DE CENTRALIZAR (ALVO 🎯) */
+/* BOTÃO FLUTUANTE DE CENTRALIZAR */
 .btn-recenter {
   position: absolute !important;
   bottom: 25px !important;

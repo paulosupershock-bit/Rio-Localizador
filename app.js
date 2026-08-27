@@ -29,17 +29,17 @@ const loginForm = document.getElementById("login-form");
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const btnRegister = document.getElementById("btn-register");
+const btnGoogleLogin = document.getElementById("btn-google-login");
 const btnLogout = document.getElementById("btn-logout");
 const btnRecenter = document.getElementById("btn-recenter");
 const btnForgotPassword = document.getElementById("btn-forgot-password");
 
-// Drawer
+// Menu (Drawer)
 const btnOpenDrawer = document.getElementById("btn-open-drawer");
 const btnCloseDrawer = document.getElementById("btn-close-drawer");
 const drawer = document.getElementById("drawer");
 const overlay = document.getElementById("drawer-overlay");
 
-// Funções para controle do Drawer
 function openDrawer() {
   if (drawer && overlay) {
     drawer.classList.add("open");
@@ -81,12 +81,23 @@ auth.onAuthStateChanged((user) => {
 if (loginForm) {
   loginForm.addEventListener("submit", (e) => {
     e.preventDefault();
-    auth.signInWithEmailAndPassword(emailInput.value, passwordInput.value)
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!email || !password) {
+      alert("Por favor, preencha o e-mail e a senha.");
+      return;
+    }
+
+    auth.signInWithEmailAndPassword(email, password)
       .catch((error) => {
-        if (error.code === "auth/user-not-found" || error.code === "auth/invalid-credential") {
-          alert("E-mail ou senha incorretos. Se ainda não tem conta, clique em 'Cadastrar'.");
+        console.error("Erro no login:", error);
+        if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+          alert("E-mail ou senha incorretos. Caso não tenha conta, clique em 'Cadastrar'.");
+        } else if (error.code === "auth/invalid-email") {
+          alert("Formato de e-mail inválido.");
         } else {
-          alert("Erro no login: " + error.message);
+          alert("Erro ao entrar: " + error.message);
         }
       });
   });
@@ -95,35 +106,52 @@ if (loginForm) {
 // CADASTRO DE USUÁRIO
 if (btnRegister) {
   btnRegister.addEventListener("click", () => {
-    if (!emailInput.value || !passwordInput.value) {
-      alert("Preencha e-mail e senha para cadastrar.");
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!email || !password) {
+      alert("Preencha e-mail e senha no formulário antes de clicar em Cadastrar.");
       return;
     }
 
-    auth.createUserWithEmailAndPassword(emailInput.value, passwordInput.value)
+    if (password.length < 6) {
+      alert("A senha precisa ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    auth.createUserWithEmailAndPassword(email, password)
       .then((cred) => {
         database.ref(`users/${cred.user.uid}`).set({
           email: cred.user.email.toLowerCase()
         });
-        alert("Conta criada com sucesso!");
+        alert("Conta cadastrada com sucesso!");
       })
-      .catch((error) => alert("Erro ao cadastrar: " + error.message));
+      .catch((error) => {
+        console.error("Erro no cadastro:", error);
+        if (error.code === "auth/email-already-in-use") {
+          alert("Este e-mail já está cadastrado. Tente entrar.");
+        } else {
+          alert("Erro no cadastro: " + error.message);
+        }
+      });
   });
 }
 
 // LOGIN COM GOOGLE
-const googleProvider = new firebase.auth.GoogleAuthProvider();
-const btnGoogleLogin = document.getElementById("btn-google-login");
 if (btnGoogleLogin) {
   btnGoogleLogin.addEventListener("click", () => {
-    auth.signInWithPopup(googleProvider)
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider)
       .then((result) => {
-        database.ref(`users/${result.user.uid}`).update({
-          email: result.user.email.toLowerCase()
-        });
+        if (result.user) {
+          database.ref(`users/${result.user.uid}`).update({
+            email: result.user.email.toLowerCase()
+          });
+        }
       })
       .catch((error) => {
-        if (error.code !== "auth/popup-closed-by-user") {
+        console.error("Erro Google Login:", error);
+        if (error.code !== "auth/popup-closed-by-user" && error.code !== "auth/cancelled-popup-request") {
           alert("Erro no Login com Google: " + error.message);
         }
       });
@@ -133,13 +161,14 @@ if (btnGoogleLogin) {
 // RECUPERAR SENHA
 if (btnForgotPassword) {
   btnForgotPassword.addEventListener("click", () => {
-    if (!emailInput.value) {
-      alert("Digite seu e-mail no campo acima para redefinir a senha.");
+    const email = emailInput.value.trim();
+    if (!email) {
+      alert("Digite seu e-mail no campo acima para receber o link de redefinição.");
       return;
     }
-    auth.sendPasswordResetEmail(emailInput.value)
-      .then(() => alert("E-mail de redefinição enviado com sucesso!"))
-      .catch((error) => alert("Erro: " + error.message));
+    auth.sendPasswordResetEmail(email)
+      .then(() => alert("E-mail de redefinição enviado com sucesso! Verifique sua caixa de entrada."))
+      .catch((error) => alert("Erro ao enviar e-mail: " + error.message));
   });
 }
 
@@ -151,7 +180,7 @@ if (btnLogout) {
 // INICIALIZAR MAPA
 function initMap() {
   if (map) return;
-  const initialCoords = [-22.9068, -43.1729];
+  const initialCoords = [-22.9068, -43.1729]; // Rio de Janeiro
 
   map = L.map('map').setView(initialCoords, 14);
 
@@ -160,7 +189,6 @@ function initMap() {
     attribution: '© OpenStreetMap'
   }).addTo(map);
 
-  // Ação do Botão Centralizar (Alvo 🎯)
   if (btnRecenter) {
     L.DomEvent.disableClickPropagation(btnRecenter);
 
