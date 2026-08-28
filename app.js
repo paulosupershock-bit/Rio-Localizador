@@ -20,7 +20,7 @@ let userMarker = null;
 let watchId = null;
 const otherMarkers = {};
 let currentPolyline = null;
-const alertedFriends = new Set(); // Para não disparar notificação repetida no mesmo raio
+const alertedFriends = new Set();
 
 // Elementos da DOM
 const authScreen = document.getElementById("auth-screen");
@@ -46,21 +46,18 @@ const pendingRequestsList = document.getElementById("pending-requests-list");
 const friendsList = document.getElementById("friends-list");
 const btnMyHistory = document.getElementById("btn-toggle-history");
 const btnUpdatePhone = document.getElementById("btn-update-phone");
+const btnTogglePrivacy = document.getElementById("btn-toggle-privacy");
 
-// --- FUNÇÃO AUXILIAR DE PADRONIZAÇÃO DE TELEFONE COM SINAL + ---
+// --- FUNÇÃO AUXILIAR DE PADRONIZAÇÃO DE TELEFONE ---
 function formatPhoneNumber(phoneInput) {
   if (!phoneInput) return "";
-  
-  // Remove tudo que não for dígito
   let cleaned = phoneInput.replace(/\D/g, "");
   if (!cleaned) return "";
 
-  // Se digitado sem o DDI do Brasil (ex: 10 ou 11 dígitos), adiciona '55'
   if (cleaned.length === 10 || cleaned.length === 11) {
     cleaned = "55" + cleaned;
   }
 
-  // Adiciona obrigatoriamente o sinal de '+' na frente (ex: +5521999998888)
   return "+" + cleaned;
 }
 
@@ -85,9 +82,44 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-// Pedir Permissão para Notificações
 if ("Notification" in window && Notification.permission !== "granted") {
   Notification.requestPermission();
+}
+
+// --- GERENCIAMENTO DE PRIVACIDADE DO HISTÓRICO ---
+function listenToMyPrivacy(uid) {
+  const privacyRef = database.ref(`users/${uid}/isHistoryPrivate`);
+  privacyRef.on('value', (snap) => {
+    // Se o campo ainda não existir no banco, define como true por padrão (Privado)
+    const isPrivate = snap.exists() ? snap.val() === true : true;
+    
+    if (!snap.exists()) {
+      privacyRef.set(true);
+    }
+    
+    if (btnTogglePrivacy) {
+      btnTogglePrivacy.innerText = isPrivate 
+        ? "Privacidade: Histórico Oculto (Privado)" 
+        : "Privacidade: Histórico Visível para Amigos";
+    }
+  });
+}
+
+if (btnTogglePrivacy) {
+  btnTogglePrivacy.addEventListener("click", () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const privacyRef = database.ref(`users/${user.uid}/isHistoryPrivate`);
+    privacyRef.once('value', (snap) => {
+      const currentState = snap.exists() ? snap.val() === true : true;
+      const newState = !currentState;
+
+      privacyRef.set(newState).then(() => {
+        alert(newState ? "Seu histórico agora está OCULTO para contatos." : "Seu histórico agora está VISÍVEL para contatos.");
+      });
+    });
+  });
 }
 
 // Login
@@ -111,7 +143,8 @@ btnRegister.addEventListener("click", () => {
     .then((cred) => {
       database.ref(`users/${cred.user.uid}`).set({
         email: cred.user.email.toLowerCase(),
-        phone: cleanedPhone
+        phone: cleanedPhone,
+        isHistoryPrivate: true // Privado por padrão ao cadastrar
       });
       alert("Conta criada com sucesso!");
     })
@@ -131,7 +164,7 @@ if (btnForgotPassword) {
   });
 }
 
-// Login com Google (Com verificação/solicitação de telefone)
+// Login com Google
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 const btnGoogleLogin = document.getElementById("btn-google-login");
 if (btnGoogleLogin) {
@@ -142,17 +175,17 @@ if (btnGoogleLogin) {
         
         userRef.once('value', (snapshot) => {
           const userData = snapshot.val() || {};
+          const updates = { email: result.user.email.toLowerCase() };
+          
           if (!userData.phone) {
             const rawPhone = prompt("Bem-vindo! Digite seu telefone com DDD para completar o cadastro (ex: 21999998888):") || "";
-            const cleanedPhone = formatPhoneNumber(rawPhone);
-            
-            userRef.update({ 
-              email: result.user.email.toLowerCase(),
-              phone: cleanedPhone 
-            });
-          } else {
-            userRef.update({ email: result.user.email.toLowerCase() });
+            updates.phone = formatPhoneNumber(rawPhone);
           }
+          if (userData.isHistoryPrivate === undefined) {
+            updates.isHistoryPrivate = true; // Privado por padrão
+          }
+          
+          userRef.update(updates);
         });
       })
       .catch((error) => {
@@ -163,7 +196,7 @@ if (btnGoogleLogin) {
   });
 }
 
-// Botão de Atualizar/Cadastrar Telefone Manualmente
+// Botão de Atualizar/Cadastrar Telefone
 if (btnUpdatePhone) {
   btnUpdatePhone.addEventListener("click", () => {
     const user = auth.currentUser;
@@ -196,8 +229,8 @@ auth.onAuthStateChanged((user) => {
     initMap();
     startLocationTracking(user.uid);
     listenToFriendships(user.uid);
+    listenToMyPrivacy(user.uid);
 
-    // Garante que o e-mail está salvo em letras minúsculas para busca
     if (user.email) {
       database.ref(`users/${user.uid}`).update({ email: user.email.toLowerCase() });
     }
@@ -242,12 +275,9 @@ function startLocationTracking(uid) {
         userMarker.setLatLng(latLng);
       }
 
-      const timestamp = firebase.database.ServerValue.TIMESTAMP;
+      const timestamp = Date.now();
 
-      // Localização Atual
-      database.ref('locations/' + uid).set({ latitude, longitude, timestamp });
-
-      // Histórico
+      database.ref('locations/' + uid).set({ latitude, longitude, timestamp: firebase.database.ServerValue.TIMESTAMP });
       database.ref(`location_history/${uid}`).push({ latitude, longitude, timestamp });
     },
     (error) => console.error("Erro GPS: ", error),
@@ -257,7 +287,6 @@ function startLocationTracking(uid) {
 
 // --- GERENCIAMENTO DE AMIGOS ---
 
-// Alternar busca por E-mail ou Telefone
 if (friendSearchType) {
   friendSearchType.addEventListener("change", () => {
     if (friendSearchType.value === "email") {
@@ -274,7 +303,6 @@ if (friendSearchType) {
   });
 }
 
-// Enviar Solicitação
 if (addFriendForm) {
   addFriendForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -299,7 +327,7 @@ if (addFriendForm) {
 
     queryRef.once('value', (snapshot) => {
       if (!snapshot.exists()) {
-        alert("Usuário não encontrado. Verifique se o e-mail ou telefone está correto.");
+        alert("Usuário não encontrado.");
         return;
       }
 
@@ -326,7 +354,6 @@ if (addFriendForm) {
   });
 }
 
-// Escutar Amizades do Usuário
 function listenToFriendships(myUid) {
   database.ref(`friendships/${myUid}`).on('value', (snapshot) => {
     pendingRequestsList.innerHTML = "";
@@ -371,39 +398,48 @@ function renderPendingRequest(friendUid, friendIdentifier) {
   pendingRequestsList.appendChild(item);
 }
 
-function acceptFriendRequest(friendUid) {
+window.acceptFriendRequest = function(friendUid) {
   const myUid = auth.currentUser.uid;
   const updates = {};
   updates[`/friendships/${myUid}/${friendUid}`] = 'accepted';
   updates[`/friendships/${friendUid}/${myUid}`] = 'accepted';
 
   database.ref().update(updates).then(() => alert("Solicitação aceita!"));
-}
+};
 
-function rejectFriendRequest(friendUid) {
+window.rejectFriendRequest = function(friendUid) {
   const myUid = auth.currentUser.uid;
   const updates = {};
   updates[`/friendships/${myUid}/${friendUid}`] = null;
   updates[`/friendships/${friendUid}/${myUid}`] = null;
 
   database.ref().update(updates);
-}
+};
 
 function renderFriendItem(friendUid, friendIdentifier) {
   const div = document.createElement("div");
   div.className = "friend-item";
   div.id = `friend-item-${friendUid}`;
-  div.innerHTML = `
-    <div class="friend-info">
-      <strong>${friendIdentifier}</strong>
-      <small id="time-status-${friendUid}" class="time-status">Aguardando dados...</small>
-    </div>
-    <button class="btn-history-small" onclick="drawUserHistory('${friendUid}', '${friendIdentifier}')">Ver Rota</button>
-  `;
+
+  // Verifica a privacidade do amigo antes de desenhar o botão "Ver Rota"
+  database.ref(`users/${friendUid}/isHistoryPrivate`).on('value', (snap) => {
+    const isPrivate = snap.val() === true;
+
+    div.innerHTML = `
+      <div class="friend-info">
+        <strong>${friendIdentifier}</strong>
+        <small id="time-status-${friendUid}" class="time-status">Aguardando dados...</small>
+      </div>
+      ${!isPrivate 
+        ? `<button class="btn-history-small" onclick="drawUserHistory('${friendUid}', '${friendIdentifier}')">Ver Rota</button>`
+        : `<small style="color: #64748b; font-size: 10px; font-style: italic;">Histórico privado</small>`
+      }
+    `;
+  });
+
   friendsList.appendChild(div);
 }
 
-// Localização em Tempo Real de Amigos
 function listenToFriendLocation(friendUid, friendIdentifier) {
   database.ref(`locations/${friendUid}`).on('value', (snapshot) => {
     const data = snapshot.val();
@@ -443,7 +479,6 @@ function updateLastSeenUI(friendUid, timestamp) {
   }
 }
 
-// Alerta de Proximidade (500m)
 function checkProximityAlert(friendUid, friendIdentifier, friendLat, friendLng) {
   if (!userMarker) return;
   const myPos = userMarker.getLatLng();
@@ -481,8 +516,24 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Histórico de Trajeto
-function drawUserHistory(targetUid, title = "Trajeto") {
+// Histórico de Trajeto com Validação de Segurança
+window.drawUserHistory = function(targetUid, title = "Trajeto") {
+  const myUid = auth.currentUser.uid;
+
+  if (targetUid !== myUid) {
+    database.ref(`users/${targetUid}/isHistoryPrivate`).once('value', (snap) => {
+      if (snap.val() === true) {
+        alert(`${title} definiu o histórico de localização como privado.`);
+        return;
+      }
+      fetchAndDrawHistory(targetUid, title);
+    });
+  } else {
+    fetchAndDrawHistory(targetUid, title);
+  }
+};
+
+function fetchAndDrawHistory(targetUid, title) {
   const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
 
   database.ref(`location_history/${targetUid}`).once('value')
@@ -499,11 +550,12 @@ function drawUserHistory(targetUid, title = "Trajeto") {
         if (
           val &&
           typeof val.latitude === 'number' &&
-          typeof val.longitude === 'number' &&
-          val.timestamp &&
-          val.timestamp >= thirtyDaysAgo
+          typeof val.longitude === 'number'
         ) {
-          latLngs.push([val.latitude, val.longitude]);
+          const ts = typeof val.timestamp === 'number' ? val.timestamp : Date.now();
+          if (ts >= thirtyDaysAgo) {
+            latLngs.push([val.latitude, val.longitude]);
+          }
         }
       });
 
