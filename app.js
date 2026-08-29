@@ -86,17 +86,31 @@ if ("Notification" in window && Notification.permission !== "granted") {
   Notification.requestPermission();
 }
 
-// --- GERENCIAMENTO DE PRIVACIDADE DO HISTÓRICO ---
+// --- GERENCIAMENTO EXCLUSIVO DE PRIVACIDADE DO ADMINISTRADOR ---
 function listenToMyPrivacy(uid) {
+  const user = auth.currentUser;
+  
+  // ⚠️ ALTERE ABAIXO PARA O SEU E-MAIL CADASTRADO NO SISTEMA:
+  const ADMIN_EMAIL = "paulo.supershock@gmail.com"; 
+
+  // Verifica se quem está logado é a sua conta principal
+  if (user && user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+    if (btnTogglePrivacy) btnTogglePrivacy.classList.remove("hidden");
+  } else {
+    // Esconde o botão completamente para qualquer outro usuário
+    if (btnTogglePrivacy) btnTogglePrivacy.classList.add("hidden");
+    return;
+  }
+
+  // Ouve o estado de privacidade do seu perfil
   const privacyRef = database.ref(`users/${uid}/isHistoryPrivate`);
   privacyRef.on('value', (snap) => {
-    // Se o campo ainda não existir no banco, define como true por padrão (Privado)
     const isPrivate = snap.exists() ? snap.val() === true : true;
     
     if (!snap.exists()) {
       privacyRef.set(true);
     }
-    
+
     if (btnTogglePrivacy) {
       btnTogglePrivacy.innerText = isPrivate 
         ? "Privacidade: Histórico Oculto (Privado)" 
@@ -144,7 +158,7 @@ btnRegister.addEventListener("click", () => {
       database.ref(`users/${cred.user.uid}`).set({
         email: cred.user.email.toLowerCase(),
         phone: cleanedPhone,
-        isHistoryPrivate: true // Privado por padrão ao cadastrar
+        isHistoryPrivate: false // Amigos sempre nascem públicos (sem botão de privacidade)
       });
       alert("Conta criada com sucesso!");
     })
@@ -180,9 +194,6 @@ if (btnGoogleLogin) {
           if (!userData.phone) {
             const rawPhone = prompt("Bem-vindo! Digite seu telefone com DDD para completar o cadastro (ex: 21999998888):") || "";
             updates.phone = formatPhoneNumber(rawPhone);
-          }
-          if (userData.isHistoryPrivate === undefined) {
-            updates.isHistoryPrivate = true; // Privado por padrão
           }
           
           userRef.update(updates);
@@ -421,7 +432,6 @@ function renderFriendItem(friendUid, friendIdentifier) {
   div.className = "friend-item";
   div.id = `friend-item-${friendUid}`;
 
-  // Verifica a privacidade do amigo antes de desenhar o botão "Ver Rota"
   database.ref(`users/${friendUid}/isHistoryPrivate`).on('value', (snap) => {
     const isPrivate = snap.val() === true;
 
@@ -516,7 +526,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Histórico de Trajeto com Validação de Segurança
+// Histórico de Trajeto
 window.drawUserHistory = function(targetUid, title = "Trajeto") {
   const myUid = auth.currentUser.uid;
 
