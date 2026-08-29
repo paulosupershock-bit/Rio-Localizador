@@ -96,7 +96,7 @@ function listenToMyPrivacy(uid) {
   const isUserAdmin = user && user.email && user.email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
 
   if (isUserAdmin) {
-    // Exibe o botão e ativa a escuta se for você
+    // Exibe o botão apenas para você
     if (btnTogglePrivacy) {
       btnTogglePrivacy.classList.remove("hidden");
       btnTogglePrivacy.style.display = "block";
@@ -113,7 +113,7 @@ function listenToMyPrivacy(uid) {
       }
     });
   } else {
-    // Para contatos comuns: Remove o botão da tela e garante no banco que a rota fica visível para você
+    // Para contatos comuns: Remove o botão e limpa qualquer trava de privacidade no banco
     if (btnTogglePrivacy && btnTogglePrivacy.parentNode) {
       btnTogglePrivacy.parentNode.removeChild(btnTogglePrivacy);
       btnTogglePrivacy = null;
@@ -162,7 +162,7 @@ btnRegister.addEventListener("click", () => {
       database.ref(`users/${cred.user.uid}`).set({
         email: cred.user.email.toLowerCase(),
         phone: cleanedPhone,
-        isHistoryPrivate: false // Amigos criam conta com histórico liberado por padrão
+        isHistoryPrivate: false
       });
       alert("Conta criada com sucesso!");
     })
@@ -434,26 +434,20 @@ window.rejectFriendRequest = function(friendUid) {
   database.ref().update(updates);
 };
 
+// --- RENDERIZAR ITEM DA LISTA DE AMIGOS ---
 function renderFriendItem(friendUid, friendIdentifier) {
   const div = document.createElement("div");
   div.className = "friend-item";
   div.id = `friend-item-${friendUid}`;
 
-  database.ref(`users/${friendUid}/isHistoryPrivate`).on('value', (snap) => {
-    // Se não existir valor no banco ou não for estritamente true, assume false (liberado para você ver a rota)
-    const isPrivate = snap.exists() ? snap.val() === true : false;
-
-    div.innerHTML = `
-      <div class="friend-info">
-        <strong>${friendIdentifier}</strong>
-        <small id="time-status-${friendUid}" class="time-status">Aguardando dados...</small>
-      </div>
-      ${!isPrivate 
-        ? `<button class="btn-history-small" onclick="drawUserHistory('${friendUid}', '${friendIdentifier}')">Ver Rota</button>`
-        : `<small style="color: #64748b; font-size: 10px; font-style: italic;">Histórico privado</small>`
-      }
-    `;
-  });
+  // Garante a exibição do botão 'Ver Rota' para todos os seus contatos
+  div.innerHTML = `
+    <div class="friend-info">
+      <strong>${friendIdentifier}</strong>
+      <small id="time-status-${friendUid}" class="time-status">Aguardando dados...</small>
+    </div>
+    <button class="btn-history-small" onclick="drawUserHistory('${friendUid}', '${friendIdentifier}')">Ver Rota</button>
+  `;
 
   friendsList.appendChild(div);
 }
@@ -534,21 +528,9 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Histórico de Trajeto
+// --- HISTÓRICO DE TRAJETO ---
 window.drawUserHistory = function(targetUid, title = "Trajeto") {
-  const myUid = auth.currentUser.uid;
-
-  if (targetUid !== myUid) {
-    database.ref(`users/${targetUid}/isHistoryPrivate`).once('value', (snap) => {
-      if (snap.val() === true) {
-        alert(`${title} definiu o histórico de localização como privado.`);
-        return;
-      }
-      fetchAndDrawHistory(targetUid, title);
-    });
-  } else {
-    fetchAndDrawHistory(targetUid, title);
-  }
+  fetchAndDrawHistory(targetUid, title);
 };
 
 function fetchAndDrawHistory(targetUid, title) {
