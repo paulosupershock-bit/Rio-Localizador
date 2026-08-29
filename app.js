@@ -20,6 +20,7 @@ let userMarker = null;
 let watchId = null;
 const otherMarkers = {};
 let currentPolyline = null;
+let btnClearRoute = null;
 const alertedFriends = new Set();
 
 // Elementos da DOM
@@ -96,7 +97,6 @@ function listenToMyPrivacy(uid) {
   const isUserAdmin = user && user.email && user.email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
 
   if (isUserAdmin) {
-    // Exibe o botão apenas para você
     if (btnTogglePrivacy) {
       btnTogglePrivacy.classList.remove("hidden");
       btnTogglePrivacy.style.display = "block";
@@ -113,7 +113,6 @@ function listenToMyPrivacy(uid) {
       }
     });
   } else {
-    // Para contatos comuns: Remove o botão e limpa qualquer trava de privacidade no banco
     if (btnTogglePrivacy && btnTogglePrivacy.parentNode) {
       btnTogglePrivacy.parentNode.removeChild(btnTogglePrivacy);
       btnTogglePrivacy = null;
@@ -277,6 +276,42 @@ function initMap() {
   btnMyHistory.addEventListener("click", () => {
     if (auth.currentUser) drawUserHistory(auth.currentUser.uid, "Meu Trajeto");
   });
+
+  initClearRouteButton();
+}
+
+// Criação dinâmica do botão de limpar rota na tela do mapa
+function initClearRouteButton() {
+  if (!btnClearRoute) {
+    btnClearRoute = document.createElement("button");
+    btnClearRoute.id = "btn-clear-route";
+    btnClearRoute.innerText = "❌ Limpar Trajeto";
+    btnClearRoute.style.position = "absolute";
+    btnClearRoute.style.bottom = "80px";
+    btnClearRoute.style.right = "20px";
+    btnClearRoute.style.zIndex = "1000";
+    btnClearRoute.style.padding = "10px 15px";
+    btnClearRoute.style.backgroundColor = "#ef4444";
+    btnClearRoute.style.color = "white";
+    btnClearRoute.style.border = "none";
+    btnClearRoute.style.borderRadius = "8px";
+    btnClearRoute.style.cursor = "pointer";
+    btnClearRoute.style.boxShadow = "0 4px 6px rgba(0,0,0,0.1)";
+    btnClearRoute.style.display = "none";
+
+    const mapScreenElem = document.getElementById("map-screen");
+    if (mapScreenElem) {
+      mapScreenElem.appendChild(btnClearRoute);
+    }
+
+    btnClearRoute.addEventListener("click", () => {
+      if (currentPolyline) {
+        map.removeLayer(currentPolyline);
+        currentPolyline = null;
+      }
+      btnClearRoute.style.display = "none";
+    });
+  }
 }
 
 // Rastreamento GPS Próprio
@@ -434,19 +469,18 @@ window.rejectFriendRequest = function(friendUid) {
   database.ref().update(updates);
 };
 
-// --- RENDERIZAR ITEM DA LISTA DE AMIGOS ---
+// --- RENDERIZAR ITEM DA LISTA DE AMIGOS COM BOTÃO DE HISTÓRICO DE 30 DIAS ---
 function renderFriendItem(friendUid, friendIdentifier) {
   const div = document.createElement("div");
   div.className = "friend-item";
   div.id = `friend-item-${friendUid}`;
 
-  // Garante a exibição do botão 'Ver Rota' para todos os seus contatos
   div.innerHTML = `
     <div class="friend-info">
       <strong>${friendIdentifier}</strong>
       <small id="time-status-${friendUid}" class="time-status">Aguardando dados...</small>
     </div>
-    <button class="btn-history-small" onclick="drawUserHistory('${friendUid}', '${friendIdentifier}')">Ver Rota</button>
+    <button class="btn-history-small" onclick="drawUserHistory('${friendUid}', '${friendIdentifier}')">Ver Trajeto (30 dias)</button>
   `;
 
   friendsList.appendChild(div);
@@ -528,7 +562,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// --- HISTÓRICO DE TRAJETO ---
+// --- HISTÓRICO DE TRAJETO DE 30 DIAS ---
 window.drawUserHistory = function(targetUid, title = "Trajeto") {
   fetchAndDrawHistory(targetUid, title);
 };
@@ -583,6 +617,11 @@ function fetchAndDrawHistory(targetUid, title) {
         }).addTo(map);
 
         map.fitBounds(currentPolyline.getBounds(), { padding: [40, 40] });
+      }
+
+      // Exibe o botão flutuante de limpar rota no mapa
+      if (btnClearRoute) {
+        btnClearRoute.style.display = "block";
       }
 
       closeDrawer();
