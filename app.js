@@ -1,5 +1,5 @@
 /* ==========================================================================
-   RIO LOCALIZADOR - APP.JS (CÓDIGO COMPLETO E UNIFICADO)
+   RIO LOCALIZADOR - APP.JS (VERSÃO COM RESTRICÃO DE ADMIN)
    ========================================================================== */
 
 // --- CONFIGURAÇÃO E INICIALIZAÇÃO DO FIREBASE ---
@@ -20,8 +20,9 @@ if (!firebase.apps.length) {
 const auth = firebase.auth();
 const database = firebase.database();
 
-// ⚠️ ALTERE ABAIXO PARA O SEU E-MAIL DE ADMINISTRADOR ⚠️
-const ADMIN_EMAIL = "paulo.supershock@gmail.com";
+// ⚠️ E-MAIL EXCLUSIVO DO ADMINISTRADOR ⚠️
+// Apenas esta conta poderá cadastrar novos usuários e ver a seção de Admin.
+const ADMIN_EMAIL = "paulo.supershock@gmail.com"; 
 
 // --- VARIÁVEIS GLOBAIS DO MAPA ---
 let map = null;
@@ -52,7 +53,14 @@ const friendsList = document.getElementById("friends-list") || document.getEleme
 const btnMyHistory = document.getElementById("btn-toggle-history");
 const btnUpdatePhone = document.getElementById("btn-update-phone");
 const btnTogglePrivacy = document.getElementById("btn-toggle-privacy");
+
+// Elementos de Admin e Solicitação
+const adminSection = document.getElementById("admin-section");
 const btnAdminRegisterUser = document.getElementById("btn-admin-register-user") || document.getElementById("btnAdminRegisterUser");
+const friendSearchType = document.getElementById("friend-search-type");
+const friendEmailInput = document.getElementById("friend-email-input");
+const friendPhoneInput = document.getElementById("friend-phone-input");
+const addFriendForm = document.getElementById("add-friend-form");
 
 // --- UTILS: FORMATAÇÃO DE TELEFONE ---
 function formatPhoneNumber(phoneInput) {
@@ -175,10 +183,16 @@ if (btnForgotPassword) {
 if (btnLogout) btnLogout.addEventListener("click", () => auth.signOut());
 
 // ==========================================================================
-// 2. CADASTRO DE CONTATO DIRETO POR TELEFONE COM APROVAÇÃO AUTOMÁTICA
+// 2. EXCLUSIVIDADE DE CADASTRO: APENAS ADMINISTRADOR
 // ==========================================================================
 if (btnAdminRegisterUser) {
   btnAdminRegisterUser.addEventListener("click", async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser || currentUser.email.toLowerCase().trim() !== ADMIN_EMAIL.toLowerCase().trim()) {
+      alert("Acesso negado: Apenas o administrador pode cadastrar usuários no banco de dados.");
+      return;
+    }
+
     const rawPhone = prompt("Digite o TELEFONE com DDD do contato (ex: 21999998888):");
     if (!rawPhone) return;
 
@@ -188,12 +202,12 @@ if (btnAdminRegisterUser) {
       return;
     }
 
-    const optionalEmail = prompt("Digite o E-MAIL do contato (OPCIONAL - pode deixar em branco):") || "";
+    const optionalEmail = prompt("Digite o E-MAIL do contato (OPCIONAL):") || "";
     const userEmail = optionalEmail.trim().toLowerCase();
     const displayName = prompt("Digite o NOME do contato:") || cleanedPhone;
 
     try {
-      const myUid = auth.currentUser.uid;
+      const myUid = currentUser.uid;
       const newUserRef = database.ref('users').push();
       const newFriendUid = newUserRef.key;
 
@@ -207,7 +221,6 @@ if (btnAdminRegisterUser) {
         createdManual: true
       };
 
-      // Define como aceito em ambas as partes automaticamente
       updates[`/friendships/${myUid}/${newFriendUid}`] = "accepted";
       updates[`/friendships/${newFriendUid}/${myUid}`] = "accepted";
 
@@ -217,6 +230,80 @@ if (btnAdminRegisterUser) {
     } catch (error) {
       alert("Erro ao cadastrar contato: " + error.message);
     }
+  });
+}
+
+// Alternância de campos para busca (E-mail / Telefone)
+if (friendSearchType) {
+  friendSearchType.addEventListener("change", () => {
+    if (friendSearchType.value === "email") {
+      if (friendEmailInput) { friendEmailInput.classList.remove("hidden"); friendEmailInput.required = true; }
+      if (friendPhoneInput) { friendPhoneInput.classList.add("hidden"); friendPhoneInput.required = false; friendPhoneInput.value = ""; }
+    } else {
+      if (friendPhoneInput) { friendPhoneInput.classList.remove("hidden"); friendPhoneInput.required = true; }
+      if (friendEmailInput) { friendEmailInput.classList.add("hidden"); friendEmailInput.required = false; friendEmailInput.value = ""; }
+    }
+  });
+}
+
+// Solicitação / Adição de contato por usuário comum
+if (addFriendForm) {
+  addFriendForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const searchType = friendSearchType ? friendSearchType.value : "phone";
+    const myUid = auth.currentUser ? auth.currentUser.uid : null;
+
+    if (!myUid) {
+      alert("Você precisa estar logado para enviar uma solicitação.");
+      return;
+    }
+
+    database.ref('users').once('value', (snapshot) => {
+      if (!snapshot.exists()) {
+        alert("Nenhum usuário encontrado no sistema.");
+        return;
+      }
+
+      let foundUid = null;
+      let targetValue = "";
+
+      if (searchType === "phone" && friendPhoneInput) {
+        targetValue = formatPhoneNumber(friendPhoneInput.value);
+        snapshot.forEach((child) => {
+          const u = child.val();
+          if (u && u.phone && formatPhoneNumber(u.phone) === targetValue) foundUid = child.key;
+        });
+      } else if (friendEmailInput) {
+        targetValue = friendEmailInput.value.trim().toLowerCase();
+        snapshot.forEach((child) => {
+          const u = child.val();
+          if (u && u.email && u.email.trim().toLowerCase() === targetValue) foundUid = child.key;
+        });
+      }
+
+      if (!foundUid) {
+        alert(`Usuário não encontrado com o ${searchType === "phone" ? "telefone" : "e-mail"}: ${targetValue}`);
+        return;
+      }
+
+      if (foundUid === myUid) {
+        alert("Você não pode adicionar seu próprio usuário.");
+        return;
+      }
+
+      const updates = {};
+      updates[`/friendships/${myUid}/${foundUid}`] = "accepted";
+      updates[`/friendships/${foundUid}/${myUid}`] = "accepted";
+
+      database.ref().update(updates)
+        .then(() => {
+          alert("Contato adicionado com sucesso!");
+          if (friendPhoneInput) friendPhoneInput.value = "";
+          if (friendEmailInput) friendEmailInput.value = "";
+          loadContactsList(myUid);
+        })
+        .catch(err => alert("Erro ao adicionar contato: " + err.message));
+    });
   });
 }
 
@@ -254,7 +341,7 @@ auth.onAuthStateChanged((user) => {
     }, 200);
 
     startLocationTracking(user.uid);
-    checkAdminPrivacy(user);
+    checkAdminPermissions(user);
     loadContactsList(user.uid);
   } else {
     if (watchId) navigator.geolocation.clearWatch(watchId);
@@ -313,23 +400,38 @@ function startLocationTracking(uid) {
 }
 
 // ==========================================================================
-// 4. PRIVACIDADE DE ADMINISTRADOR & LISTA DE CONTATOS
+// 4. PRIVACIDADE DE ADMINISTRADOR & EXIBIÇÃO DA SEÇÃO ADMIN
 // ==========================================================================
-function checkAdminPrivacy(user) {
+function checkAdminPermissions(user) {
   const isUserAdmin = user && user.email && user.email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
 
-  if (isUserAdmin && btnTogglePrivacy) {
-    btnTogglePrivacy.classList.remove("hidden");
-    btnTogglePrivacy.style.display = "block";
+  // Exibe a seção de cadastrar contatos no Firebase APENAS se for o Admin
+  if (adminSection) {
+    if (isUserAdmin) {
+      adminSection.classList.remove("hidden");
+      adminSection.style.display = "block";
+    } else {
+      adminSection.classList.add("hidden");
+      adminSection.style.display = "none";
+    }
+  }
 
-    database.ref(`users/${user.uid}/isHistoryPrivate`).on('value', (snap) => {
-      const isPrivate = snap.exists() ? snap.val() === true : false;
-      btnTogglePrivacy.innerText = isPrivate 
-        ? "Privacidade: Histórico Oculto (Privado)" 
-        : "Privacidade: Histórico Visível para Amigos";
-    });
-  } else if (btnTogglePrivacy) {
-    btnTogglePrivacy.classList.add("hidden");
+  // Exibe o botão de alternar privacidade APENAS para o Admin
+  if (btnTogglePrivacy) {
+    if (isUserAdmin) {
+      btnTogglePrivacy.classList.remove("hidden");
+      btnTogglePrivacy.style.display = "block";
+
+      database.ref(`users/${user.uid}/isHistoryPrivate`).on('value', (snap) => {
+        const isPrivate = snap.exists() ? snap.val() === true : false;
+        btnTogglePrivacy.innerText = isPrivate 
+          ? "Privacidade: Histórico Oculto (Privado)" 
+          : "Privacidade: Histórico Visível para Amigos";
+      });
+    } else {
+      btnTogglePrivacy.classList.add("hidden");
+      btnTogglePrivacy.style.display = "none";
+    }
   }
 }
 

@@ -5,130 +5,318 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rio Localizador</title>
 
-  <!-- Leaflet CSS -->
+  <!-- Leaflet CSS (Mapa) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  
-  <!-- CSS Principal -->
-  <link rel="stylesheet" href="style.css">
+
+  <!-- Firebase Scripts (Compatibility Build) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- CSS Customizado Integrado -->
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background-color: #f3f4f6; }
+    
+    .hidden { display: none !important; }
+
+    /* --- TELA DE AUTENTICAÇÃO --- */
+    #auth-screen {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #0052d4, #4364f7, #6fb1fc);
+    }
+
+    .auth-card {
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .auth-card h2 { margin-bottom: 20px; color: #1e293b; font-size: 24px; }
+    
+    .auth-card input, .auth-card select {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .auth-card button, .btn-primary {
+      width: 100%;
+      padding: 12px;
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin-bottom: 8px;
+    }
+
+    .auth-card button:hover, .btn-primary:hover { background-color: #1d4ed8; }
+
+    .btn-google {
+      background-color: #ea4335 !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .btn-google:hover { background-color: #d93025 !important; }
+
+    .btn-secondary { background-color: #64748b; }
+    .btn-secondary:hover { background-color: #475569; }
+
+    .btn-privacy { background-color: #d97706; color: white; margin-top: 8px; }
+    .btn-privacy:hover { background-color: #b45309; }
+
+    /* --- TELA DO MAPA --- */
+    #map-screen { width: 100%; height: 100vh; position: relative; }
+    #map { width: 100%; height: 100%; }
+
+    /* BARRA SUPERIOR */
+    .header-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 60px;
+      background-color: rgba(15, 23, 42, 0.9);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 1000;
+      backdrop-filter: blur(5px);
+    }
+
+    .header-bar h1 { font-size: 18px; font-weight: 600; }
+    
+    .btn-icon {
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 22px;
+      cursor: pointer;
+      padding: 5px 10px;
+    }
+
+    /* MENU LATERAL (DRAWER) */
+    .drawer {
+      position: absolute;
+      top: 0; left: -340px;
+      width: 320px;
+      height: 100%;
+      background: white;
+      z-index: 1001;
+      box-shadow: 4px 0 15px rgba(0,0,0,0.2);
+      transition: left 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .drawer.open { left: 0; }
+
+    .drawer-header {
+      background-color: #0f172a;
+      color: white;
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .drawer-content {
+      padding: 20px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .drawer-section {
+      margin-bottom: 25px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 15px;
+    }
+
+    .drawer-section h3 {
+      font-size: 13px;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .drawer-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+    }
+
+    /* CONTATOS & CARDS */
+    .friend-item {
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+
+    .friend-info strong { font-size: 14px; color: #1e293b; display: block; }
+    .friend-info small { color: #64748b; font-size: 12px; display: block; }
+
+    .time-status { color: #94a3b8; font-size: 11px; margin-top: 2px; }
+    .time-status.online { color: #16a34a; font-weight: 500; }
+
+    .btn-history-small {
+      margin-top: 6px;
+      padding: 6px 10px;
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    /* BOTÃO DE RECENTRALIZAR GPS */
+    .btn-recenter {
+      position: absolute;
+      bottom: 25px;
+      right: 25px;
+      z-index: 999;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background-color: white;
+      border: none;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
 </head>
 <body>
 
-  <!-- TELA DE AUTENTICAÇÃO -->
-  <div id="auth-screen" class="auth-container">
-    <div class="auth-box">
+  <!-- ==========================================================================
+       1. TELA DE AUTENTICAÇÃO (LOGIN / CADASTRO)
+       ========================================================================== -->
+  <div id="auth-screen">
+    <div class="auth-card">
       <h2>Rio Localizador</h2>
-      <p>Faça login ou cadastre-se para continuar</p>
-      
+
       <form id="login-form">
-        <input type="email" id="email" placeholder="E-mail" required />
-        <input type="password" id="password" placeholder="Senha" required />
-        
-        <button type="submit" class="btn-primary">Entrar</button>
+        <input type="email" id="email" placeholder="Seu e-mail" required />
+        <input type="password" id="password" placeholder="Sua senha" required />
+        <button type="submit">Entrar</button>
       </form>
 
-      <div class="auth-actions">
-        <button id="btn-register" class="btn-secondary">Cadastrar Conta</button>
-        <button id="btn-forgot-password" class="btn-link">Esqueceu a senha?</button>
-      </div>
-
-      <div class="divider">ou</div>
-
-      <button id="btn-google-login" class="btn-google">
+      <button id="btn-google-login" class="btn-primary btn-google">
         Entrar com Google
       </button>
+
+      <button id="btn-register" class="btn-primary btn-secondary">Criar Minha Conta</button>
+      
+      <p style="margin-top: 10px;">
+        <a href="#" id="btn-forgot-password" style="color: #2563eb; text-decoration: none; font-size: 13px;">Esqueceu a senha?</a>
+      </p>
     </div>
   </div>
 
-  <!-- TELA DO MAPA -->
-  <div id="map-screen" class="map-container hidden">
-    <!-- BARRA SUPERIOR (HEADER) -->
-    <header class="app-header">
-      <button id="btn-open-drawer" class="btn-icon">☰ Menu</button>
+  <!-- ==========================================================================
+       2. TELA DO MAPA E MENU LATERAL (DRAWER)
+       ========================================================================== -->
+  <div id="map-screen" class="hidden">
+
+    <!-- BARRA SUPERIOR -->
+    <div class="header-bar">
+      <button id="btn-open-drawer" class="btn-icon">☰</button>
       <h1>Rio Localizador</h1>
-      <button id="btn-logout" class="btn-icon btn-logout">Sair</button>
-    </header>
-
-    <!-- MAPA LEAFLET -->
-    <div id="map"></div>
-
-    <!-- BOTÕES FLUTUANTES NO MAPA -->
-    <div class="map-controls">
-      <button id="btn-recenter" class="btn-fab" title="Centralizar em mim">🎯</button>
+      <button id="btn-logout" class="btn-icon">Sair</button>
     </div>
 
-    <!-- OVERLAY DO DRAWER -->
+    <!-- MÁSCARA ESCURA DE FUNDO PARA O MENU -->
     <div id="drawer-overlay" class="drawer-overlay hidden"></div>
 
     <!-- MENU LATERAL (DRAWER) -->
-    <aside id="drawer" class="drawer">
+    <div id="drawer" class="drawer">
       <div class="drawer-header">
         <h2>Menu & Opções</h2>
         <button id="btn-close-drawer" class="btn-icon">✕</button>
       </div>
 
       <div class="drawer-content">
-        <!-- SEÇÃO: CADASTRO DIRETO DE CONTATOS (ADMINISTRADOR) -->
-        <div class="drawer-section">
+
+        <!-- SEÇÃO: CADASTRO DE CONTATO (EXCLUSIVO PARA O ADMINISTRADOR) -->
+        <div id="admin-section" class="drawer-section hidden">
           <h3>CADASTRAR CONTATO NO APP</h3>
-          <p class="section-desc">Cadastre e-mail e telefone de amigos para ficarem disponíveis no sistema imediatamente.</p>
-          <button id="btn-admin-register-user" class="btn-primary" style="background-color: #16a34a; margin-top: 5px; width: 100%;">
-            + Cadastrar Contato no Firebase
-          </button>
+          <p style="font-size: 12px; color: #64748b; margin-bottom: 8px;">Cadastre e-mail e telefone de amigos para ficarem disponíveis no sistema imediatamente.</p>
+          <button id="btnAdminRegisterUser" class="btn-primary" style="background-color: #10b981;">+ Cadastrar Contato no Firebase</button>
         </div>
 
         <!-- SEÇÃO: MEU PERFIL & PRIVACIDADE -->
         <div class="drawer-section">
           <h3>MEU PERFIL & PRIVACIDADE</h3>
-          <button id="btn-toggle-history" class="btn-secondary">Ver Meu Trajeto (30 dias)</button>
-          <button id="btn-update-phone" class="btn-secondary" style="margin-top: 5px;">Atualizar Meu Telefone</button>
-          <button id="btn-toggle-privacy" class="btn-warning hidden" style="margin-top: 5px;">Privacidade: Histórico Oculto (Privado)</button>
+          <button id="btn-toggle-history" class="btn-primary btn-secondary">Ver Meu Trajeto (30 dias)</button>
+          <button id="btn-update-phone" class="btn-primary btn-secondary">Atualizar Meu Telefone</button>
+          <button id="btn-toggle-privacy" class="btn-primary btn-privacy hidden">Privacidade: Histórico Visível para Amigos</button>
         </div>
 
-        <!-- SEÇÃO: ADICIONAR AMIGO -->
+        <!-- SEÇÃO: ADICIONAR AMIGO POR E-MAIL OU TELEFONE -->
         <div class="drawer-section">
           <h3>ADICIONAR AMIGO</h3>
           <form id="add-friend-form">
-            <label for="friend-search-type">Buscar por:</label>
+            <label for="friend-search-type" style="font-size: 12px; color: #64748b;">Buscar por:</label>
             <select id="friend-search-type">
-              <option value="email">E-mail</option>
               <option value="phone">Telefone (DDD + número)</option>
+              <option value="email">E-mail</option>
             </select>
 
-            <input type="email" id="friend-email-input" placeholder="Digite o e-mail do amigo" required />
-            <input type="tel" id="friend-phone-input" placeholder="Ex: 21999998888" class="hidden" />
+            <input type="tel" id="friend-phone-input" placeholder="Ex: 21999998888" required />
+            <input type="email" id="friend-email-input" placeholder="Digite o e-mail do amigo" class="hidden" />
 
-            <button type="submit" class="btn-primary" style="margin-top: 8px;">Enviar Solicitação</button>
+            <button type="submit" class="btn-primary">Enviar Solicitação</button>
           </form>
         </div>
 
-        <!-- SEÇÃO: SOLICITAÇÕES PENDENTES -->
-        <div class="drawer-section">
-          <h3>SOLICITAÇÕES RECEBIDAS</h3>
-          <div id="pending-requests-list" class="list-container">
-            <p class="empty-msg">Nenhuma solicitação pendente.</p>
-          </div>
-        </div>
-
-        <!-- SEÇÃO: LISTA DE AMIGOS -->
+        <!-- SEÇÃO: LISTA DE CONTATOS -->
         <div class="drawer-section">
           <h3>MEUS CONTATOS</h3>
-          <div id="friends-list" class="list-container">
-            <p class="empty-msg">Nenhum amigo adicionado.</p>
+          <div id="friends-list">
+            <p class="empty-msg" style="font-size: 13px; color: #94a3b8;">Nenhum contato adicionado.</p>
           </div>
         </div>
+
       </div>
-    </aside>
+    </div>
+
+    <!-- ELEMENTO DO MAPA LEAFLET -->
+    <div id="map"></div>
+
+    <!-- BOTÃO RECENTRALIZAR GPS -->
+    <button id="btn-recenter" class="btn-recenter" title="Centralizar em mim">🎯</button>
+
   </div>
 
-  <!-- Firebase Scripts (Compat SDK) -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- JS Principal -->
+  <!-- SCRIPT DA APLICAÇÃO -->
   <script src="app.js"></script>
 </body>
 </html>
