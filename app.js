@@ -1,5 +1,5 @@
 /* ==========================================================================
-   RIO LOCALIZADOR - APP.JS (VERSÃO COM RESTRICÃO DE ADMIN)
+   RIO LOCALIZADOR - APP.JS (CÓDIGO COMPLETO E ATUALIZADO)
    ========================================================================== */
 
 // --- CONFIGURAÇÃO E INICIALIZAÇÃO DO FIREBASE ---
@@ -20,8 +20,7 @@ if (!firebase.apps.length) {
 const auth = firebase.auth();
 const database = firebase.database();
 
-// ⚠️ E-MAIL EXCLUSIVO DO ADMINISTRADOR ⚠️
-// Apenas esta conta poderá cadastrar novos usuários e ver a seção de Admin.
+// ⚠️ INSIRA ABAIXO O SEU E-MAIL DE ADMINISTRADOR DO FIREBASE ⚠️
 const ADMIN_EMAIL = "paulo.supershock@gmail.com"; 
 
 // --- VARIÁVEIS GLOBAIS DO MAPA ---
@@ -51,10 +50,9 @@ const drawer = document.getElementById("drawer");
 const overlay = document.getElementById("drawer-overlay");
 const friendsList = document.getElementById("friends-list") || document.getElementById("contactsList");
 const btnMyHistory = document.getElementById("btn-toggle-history");
-const btnUpdatePhone = document.getElementById("btn-update-phone");
 const btnTogglePrivacy = document.getElementById("btn-toggle-privacy");
 
-// Elementos de Admin e Solicitação
+// Admin e Formulário de Adição
 const adminSection = document.getElementById("admin-section");
 const btnAdminRegisterUser = document.getElementById("btn-admin-register-user") || document.getElementById("btnAdminRegisterUser");
 const friendSearchType = document.getElementById("friend-search-type");
@@ -183,7 +181,7 @@ if (btnForgotPassword) {
 if (btnLogout) btnLogout.addEventListener("click", () => auth.signOut());
 
 // ==========================================================================
-// 2. EXCLUSIVIDADE DE CADASTRO: APENAS ADMINISTRADOR
+// 2. EXCLUSIVIDADE DE CADASTRO PARA ADMIN E BUSCA DE AMIGOS
 // ==========================================================================
 if (btnAdminRegisterUser) {
   btnAdminRegisterUser.addEventListener("click", async () => {
@@ -233,7 +231,7 @@ if (btnAdminRegisterUser) {
   });
 }
 
-// Alternância de campos para busca (E-mail / Telefone)
+// Alternância dos campos de Busca (Telefone / E-mail)
 if (friendSearchType) {
   friendSearchType.addEventListener("change", () => {
     if (friendSearchType.value === "email") {
@@ -246,7 +244,7 @@ if (friendSearchType) {
   });
 }
 
-// Solicitação / Adição de contato por usuário comum
+// Form de Adicionar Amigo
 if (addFriendForm) {
   addFriendForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -307,28 +305,8 @@ if (addFriendForm) {
   });
 }
 
-// Atualizar Telefone Próprio
-if (btnUpdatePhone) {
-  btnUpdatePhone.addEventListener("click", () => {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const rawPhone = prompt("Digite seu novo telefone com DDD (ex: 21999998888):");
-    const cleanedPhone = formatPhoneNumber(rawPhone);
-
-    if (!cleanedPhone || cleanedPhone.length < 12) {
-      alert("Por favor, digite um número válido com DDD.");
-      return;
-    }
-
-    database.ref(`users/${user.uid}`).update({ phone: cleanedPhone })
-      .then(() => alert("Seu telefone foi atualizado com sucesso!"))
-      .catch((error) => alert("Erro ao salvar telefone: " + error.message));
-  });
-}
-
 // ==========================================================================
-// 3. MONITORAMENTO DE SESSÃO, MAPA E GPS
+// 3. SESSÃO, MAPA E RASTREAMENTO GPS
 // ==========================================================================
 auth.onAuthStateChanged((user) => {
   if (user) {
@@ -400,12 +378,11 @@ function startLocationTracking(uid) {
 }
 
 // ==========================================================================
-// 4. PRIVACIDADE DE ADMINISTRADOR & EXIBIÇÃO DA SEÇÃO ADMIN
+// 4. PERMISSÕES DE ADMIN & LISTAGEM DE CONTATOS
 // ==========================================================================
 function checkAdminPermissions(user) {
   const isUserAdmin = user && user.email && user.email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
 
-  // Exibe a seção de cadastrar contatos no Firebase APENAS se for o Admin
   if (adminSection) {
     if (isUserAdmin) {
       adminSection.classList.remove("hidden");
@@ -416,7 +393,6 @@ function checkAdminPermissions(user) {
     }
   }
 
-  // Exibe o botão de alternar privacidade APENAS para o Admin
   if (btnTogglePrivacy) {
     if (isUserAdmin) {
       btnTogglePrivacy.classList.remove("hidden");
@@ -458,7 +434,7 @@ function loadContactsList(myUid) {
 
     const friendships = snapshot.val();
     if (!friendships) {
-      friendsList.innerHTML = '<p class="empty-msg">Nenhum contato adicionado.</p>';
+      friendsList.innerHTML = '<p class="empty-msg" style="font-size: 13px; color: #94a3b8;">Nenhum contato adicionado.</p>';
       return;
     }
 
@@ -518,7 +494,7 @@ function listenToFriendLocation(friendUid, friendName) {
 }
 
 // ==========================================================================
-// 5. ROTA E HISTÓRICO DE 30 DIAS NO MAPA
+// 5. TRAJETO E HISTÓRICO DE 30 DIAS
 // ==========================================================================
 window.toggleUserRoute = function(targetUid, title, buttonElem) {
   if (activePolylineUid === targetUid && currentPolyline) {

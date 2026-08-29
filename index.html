@@ -16,102 +16,150 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- CSS Customizado Integrado -->
+  <!-- Estilos Customizados -->
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body, html { width: 100%; height: 100%; overflow: hidden; background-color: #f3f4f6; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background-color: #f8fafc; }
     
     .hidden { display: none !important; }
 
-    /* --- TELA DE AUTENTICAÇÃO --- */
+    /* ==========================================================================
+       1. TELA DE LOGIN & AUTENTICAÇÃO ESTRUTURADA E MODERNA
+       ========================================================================== */
     #auth-screen {
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
-      background: linear-gradient(135deg, #0052d4, #4364f7, #6fb1fc);
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+      padding: 20px;
     }
 
     .auth-card {
       background: #ffffff;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      padding: 40px 32px;
+      border-radius: 16px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
       width: 100%;
-      max-width: 400px;
+      max-width: 380px;
       text-align: center;
     }
 
-    .auth-card h2 { margin-bottom: 20px; color: #1e293b; font-size: 24px; }
-    
+    .auth-card h2 {
+      font-size: 26px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 24px;
+      letter-spacing: -0.5px;
+    }
+
+    .auth-card form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
     .auth-card input, .auth-card select {
       width: 100%;
-      padding: 12px;
-      margin-bottom: 12px;
+      padding: 12px 16px;
       border: 1px solid #cbd5e1;
-      border-radius: 6px;
+      border-radius: 8px;
       font-size: 14px;
       outline: none;
+      transition: all 0.2s;
+      background-color: #f8fafc;
+    }
+
+    .auth-card input:focus {
+      border-color: #2563eb;
+      background-color: #ffffff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
     }
 
     .auth-card button, .btn-primary {
       width: 100%;
-      padding: 12px;
+      padding: 12px 16px;
       background-color: #2563eb;
-      color: white;
+      color: #ffffff;
       border: none;
-      border-radius: 6px;
-      font-weight: bold;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
       cursor: pointer;
-      transition: background 0.3s;
-      margin-bottom: 8px;
+      transition: background-color 0.2s;
     }
 
-    .auth-card button:hover, .btn-primary:hover { background-color: #1d4ed8; }
+    .auth-card button:hover, .btn-primary:hover {
+      background-color: #1d4ed8;
+    }
 
     .btn-google {
       background-color: #ea4335 !important;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
+      margin-top: 8px;
+      margin-bottom: 8px;
     }
-    .btn-google:hover { background-color: #d93025 !important; }
+    .btn-google:hover { background-color: #dc2626 !important; }
 
-    .btn-secondary { background-color: #64748b; }
-    .btn-secondary:hover { background-color: #475569; }
+    .btn-secondary {
+      background-color: #475569 !important;
+    }
+    .btn-secondary:hover { background-color: #334155 !important; }
 
-    .btn-privacy { background-color: #d97706; color: white; margin-top: 8px; }
-    .btn-privacy:hover { background-color: #b45309; }
+    .btn-privacy {
+      background-color: #d97706 !important;
+      color: white;
+      margin-top: 8px;
+    }
+    .btn-privacy:hover { background-color: #b45309 !important; }
 
-    /* --- TELA DO MAPA --- */
+    .forgot-link {
+      display: inline-block;
+      margin-top: 16px;
+      color: #2563eb;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .forgot-link:hover { text-decoration: underline; }
+
+    /* ==========================================================================
+       2. TELA DO MAPA & BARRA DE TOPO (COM RECORTE DE Z-INDEX DO LEAFLET)
+       ========================================================================== */
     #map-screen { width: 100%; height: 100vh; position: relative; }
-    #map { width: 100%; height: 100%; }
+    #map { width: 100%; height: 100%; z-index: 1; }
 
-    /* BARRA SUPERIOR */
+    /* AJUSTE DO BOTÃO + / - DO MAPA PARA NÃO SOBREPOR A BARRA */
+    .leaflet-top {
+      top: 70px !important;
+    }
+
     .header-bar {
       position: absolute;
       top: 0; left: 0; right: 0;
       height: 60px;
-      background-color: rgba(15, 23, 42, 0.9);
+      background-color: #0f172a;
       color: white;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 20px;
-      z-index: 1000;
-      backdrop-filter: blur(5px);
+      padding: 0 16px;
+      z-index: 2000; /* Z-Index maior que os botões do mapa */
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
     }
 
     .header-bar h1 { font-size: 18px; font-weight: 600; }
-    
+
     .btn-icon {
       background: transparent;
       border: none;
       color: white;
-      font-size: 22px;
+      font-size: 24px;
       cursor: pointer;
-      padding: 5px 10px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     /* MENU LATERAL (DRAWER) */
@@ -120,10 +168,10 @@
       top: 0; left: -340px;
       width: 320px;
       height: 100%;
-      background: white;
-      z-index: 1001;
-      box-shadow: 4px 0 15px rgba(0,0,0,0.2);
-      transition: left 0.3s ease;
+      background: #ffffff;
+      z-index: 2002; /* Fica por cima da header-bar e do mapa */
+      box-shadow: 4px 0 25px rgba(0, 0, 0, 0.25);
+      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       display: flex;
       flex-direction: column;
     }
@@ -133,7 +181,7 @@
     .drawer-header {
       background-color: #0f172a;
       color: white;
-      padding: 20px;
+      padding: 16px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -146,13 +194,14 @@
     }
 
     .drawer-section {
-      margin-bottom: 25px;
+      margin-bottom: 24px;
       border-bottom: 1px solid #e2e8f0;
-      padding-bottom: 15px;
+      padding-bottom: 16px;
     }
 
     .drawer-section h3 {
-      font-size: 13px;
+      font-size: 12px;
+      font-weight: 700;
       color: #64748b;
       text-transform: uppercase;
       margin-bottom: 12px;
@@ -162,50 +211,52 @@
     .drawer-overlay {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 1000;
+      background: rgba(15, 23, 42, 0.6);
+      z-index: 2001;
+      backdrop-filter: blur(2px);
     }
 
     /* CONTATOS & CARDS */
     .friend-item {
       display: flex;
       flex-direction: column;
-      padding: 10px;
+      padding: 12px;
       background: #f8fafc;
       border: 1px solid #e2e8f0;
-      border-radius: 6px;
+      border-radius: 8px;
       margin-bottom: 8px;
     }
 
-    .friend-info strong { font-size: 14px; color: #1e293b; display: block; }
-    .friend-info small { color: #64748b; font-size: 12px; display: block; }
+    .friend-info strong { font-size: 14px; color: #1e293b; }
+    .friend-info small { color: #64748b; font-size: 12px; }
 
-    .time-status { color: #94a3b8; font-size: 11px; margin-top: 2px; }
-    .time-status.online { color: #16a34a; font-weight: 500; }
+    .time-status { color: #94a3b8; font-size: 11px; margin-top: 4px; }
+    .time-status.online { color: #16a34a; font-weight: 600; }
 
     .btn-history-small {
-      margin-top: 6px;
-      padding: 6px 10px;
-      background-color: #3b82f6;
+      margin-top: 8px;
+      padding: 6px 12px;
+      background-color: #2563eb;
       color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       font-size: 12px;
+      font-weight: 500;
       cursor: pointer;
     }
 
-    /* BOTÃO DE RECENTRALIZAR GPS */
+    /* BOTÃO RECENTRALIZAR GPS */
     .btn-recenter {
       position: absolute;
       bottom: 25px;
       right: 25px;
-      z-index: 999;
-      width: 50px;
-      height: 50px;
+      z-index: 1000;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       background-color: white;
       border: none;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
       cursor: pointer;
       font-size: 20px;
       display: flex;
@@ -217,7 +268,7 @@
 <body>
 
   <!-- ==========================================================================
-       1. TELA DE AUTENTICAÇÃO (LOGIN / CADASTRO)
+       1. TELA DE AUTENTICAÇÃO
        ========================================================================== -->
   <div id="auth-screen">
     <div class="auth-card">
@@ -235,25 +286,23 @@
 
       <button id="btn-register" class="btn-primary btn-secondary">Criar Minha Conta</button>
       
-      <p style="margin-top: 10px;">
-        <a href="#" id="btn-forgot-password" style="color: #2563eb; text-decoration: none; font-size: 13px;">Esqueceu a senha?</a>
-      </p>
+      <a href="#" id="btn-forgot-password" class="forgot-link">Esqueceu a senha?</a>
     </div>
   </div>
 
   <!-- ==========================================================================
-       2. TELA DO MAPA E MENU LATERAL (DRAWER)
+       2. TELA DO MAPA E MENU LATERAL
        ========================================================================== -->
   <div id="map-screen" class="hidden">
 
-    <!-- BARRA SUPERIOR -->
+    <!-- BARRA SUPERIOR SOBREPOSTA SEM INTERFERÊNCIA NOS BOTÕES DO MAPA -->
     <div class="header-bar">
-      <button id="btn-open-drawer" class="btn-icon">☰</button>
+      <button id="btn-open-drawer" class="btn-icon" title="Abrir Menu">☰</button>
       <h1>Rio Localizador</h1>
-      <button id="btn-logout" class="btn-icon">Sair</button>
+      <button id="btn-logout" class="btn-icon" title="Sair">Sair</button>
     </div>
 
-    <!-- MÁSCARA ESCURA DE FUNDO PARA O MENU -->
+    <!-- MÁSCARA ESCURA -->
     <div id="drawer-overlay" class="drawer-overlay hidden"></div>
 
     <!-- MENU LATERAL (DRAWER) -->
@@ -265,10 +314,9 @@
 
       <div class="drawer-content">
 
-        <!-- SEÇÃO: CADASTRO DE CONTATO (EXCLUSIVO PARA O ADMINISTRADOR) -->
+        <!-- SEÇÃO: CADASTRO DE CONTATO (APENAS ADMINISTRADOR) -->
         <div id="admin-section" class="drawer-section hidden">
-          <h3>CADASTRAR CONTATO NO APP</h3>
-          <p style="font-size: 12px; color: #64748b; margin-bottom: 8px;">Cadastre e-mail e telefone de amigos para ficarem disponíveis no sistema imediatamente.</p>
+          <h3>CADASTRO DE CONTATO (ADMIN)</h3>
           <button id="btnAdminRegisterUser" class="btn-primary" style="background-color: #10b981;">+ Cadastrar Contato no Firebase</button>
         </div>
 
@@ -276,22 +324,21 @@
         <div class="drawer-section">
           <h3>MEU PERFIL & PRIVACIDADE</h3>
           <button id="btn-toggle-history" class="btn-primary btn-secondary">Ver Meu Trajeto (30 dias)</button>
-          <button id="btn-update-phone" class="btn-primary btn-secondary">Atualizar Meu Telefone</button>
           <button id="btn-toggle-privacy" class="btn-primary btn-privacy hidden">Privacidade: Histórico Visível para Amigos</button>
         </div>
 
-        <!-- SEÇÃO: ADICIONAR AMIGO POR E-MAIL OU TELEFONE -->
+        <!-- SEÇÃO: ADICIONAR AMIGO -->
         <div class="drawer-section">
           <h3>ADICIONAR AMIGO</h3>
           <form id="add-friend-form">
-            <label for="friend-search-type" style="font-size: 12px; color: #64748b;">Buscar por:</label>
-            <select id="friend-search-type">
+            <label for="friend-search-type" style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Buscar por:</label>
+            <select id="friend-search-type" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 8px;">
               <option value="phone">Telefone (DDD + número)</option>
               <option value="email">E-mail</option>
             </select>
 
-            <input type="tel" id="friend-phone-input" placeholder="Ex: 21999998888" required />
-            <input type="email" id="friend-email-input" placeholder="Digite o e-mail do amigo" class="hidden" />
+            <input type="tel" id="friend-phone-input" placeholder="Ex: 21999998888" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 8px;" required />
+            <input type="email" id="friend-email-input" placeholder="Digite o e-mail do amigo" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 8px;" class="hidden" />
 
             <button type="submit" class="btn-primary">Enviar Solicitação</button>
           </form>
