@@ -46,7 +46,7 @@ const pendingRequestsList = document.getElementById("pending-requests-list");
 const friendsList = document.getElementById("friends-list");
 const btnMyHistory = document.getElementById("btn-toggle-history");
 const btnUpdatePhone = document.getElementById("btn-update-phone");
-const btnTogglePrivacy = document.getElementById("btn-toggle-privacy");
+let btnTogglePrivacy = document.getElementById("btn-toggle-privacy");
 
 // --- FUNÇÃO AUXILIAR DE PADRONIZAÇÃO DE TELEFONE ---
 function formatPhoneNumber(phoneInput) {
@@ -90,37 +90,44 @@ if ("Notification" in window && Notification.permission !== "granted") {
 function listenToMyPrivacy(uid) {
   const user = auth.currentUser;
   
-  // ⚠️ ALTERE ABAIXO PARA O SEU E-MAIL CADASTRADO NO SISTEMA:
+  // ⚠️ DIGITE SEU E-MAIL EXATO ABAIXO EM LETRAS MINÚSCULAS:
   const ADMIN_EMAIL = "paulo.supershock@gmail.com"; 
 
-  // Verifica se quem está logado é a sua conta principal
-  if (user && user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-    if (btnTogglePrivacy) btnTogglePrivacy.classList.remove("hidden");
-  } else {
-    // Esconde o botão completamente para qualquer outro usuário
-    if (btnTogglePrivacy) btnTogglePrivacy.classList.add("hidden");
-    return;
-  }
+  const isUserAdmin = user && user.email && user.email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
 
-  // Ouve o estado de privacidade do seu perfil
-  const privacyRef = database.ref(`users/${uid}/isHistoryPrivate`);
-  privacyRef.on('value', (snap) => {
-    const isPrivate = snap.exists() ? snap.val() === true : true;
-    
-    if (!snap.exists()) {
-      privacyRef.set(true);
-    }
-
+  if (isUserAdmin) {
+    // Exibe o botão e ativa a escuta se for você
     if (btnTogglePrivacy) {
-      btnTogglePrivacy.innerText = isPrivate 
-        ? "Privacidade: Histórico Oculto (Privado)" 
-        : "Privacidade: Histórico Visível para Amigos";
+      btnTogglePrivacy.classList.remove("hidden");
+      btnTogglePrivacy.style.display = "block";
     }
-  });
+
+    const privacyRef = database.ref(`users/${uid}/isHistoryPrivate`);
+    privacyRef.on('value', (snap) => {
+      const isPrivate = snap.exists() ? snap.val() === true : true;
+      
+      if (!snap.exists()) {
+        privacyRef.set(true);
+      }
+
+      if (btnTogglePrivacy) {
+        btnTogglePrivacy.innerText = isPrivate 
+          ? "Privacidade: Histórico Oculto (Privado)" 
+          : "Privacidade: Histórico Visível para Amigos";
+      }
+    });
+  } else {
+    // SE NÃO FOR O ADMIN: Remove o elemento da tela permanentemente
+    if (btnTogglePrivacy && btnTogglePrivacy.parentNode) {
+      btnTogglePrivacy.parentNode.removeChild(btnTogglePrivacy);
+      btnTogglePrivacy = null; // Anula a referência
+    }
+  }
 }
 
 if (btnTogglePrivacy) {
   btnTogglePrivacy.addEventListener("click", () => {
+    if (!btnTogglePrivacy) return;
     const user = auth.currentUser;
     if (!user) return;
 
@@ -158,7 +165,7 @@ btnRegister.addEventListener("click", () => {
       database.ref(`users/${cred.user.uid}`).set({
         email: cred.user.email.toLowerCase(),
         phone: cleanedPhone,
-        isHistoryPrivate: false // Amigos sempre nascem públicos (sem botão de privacidade)
+        isHistoryPrivate: false // Amigos permanecem com histórico liberado por padrão
       });
       alert("Conta criada com sucesso!");
     })
