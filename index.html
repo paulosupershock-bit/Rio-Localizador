@@ -2,106 +2,125 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rio Localizador</title>
 
-  <!-- CSS do Leaflet -->
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-  <!-- CSS Personalizado -->
+  
+  <!-- CSS Principal -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- Tela de Autenticação -->
-  <div id="auth-screen" class="screen">
+  <!-- TELA DE AUTENTICAÇÃO -->
+  <div id="auth-screen" class="auth-container">
     <div class="auth-box">
       <h2>Rio Localizador</h2>
-      <p>Acompanhe localizações em tempo real</p>
+      <p>Faça login ou cadastre-se para continuar</p>
       
       <form id="login-form">
-        <input type="email" id="email" placeholder="Seu e-mail" required />
-        <input type="password" id="password" placeholder="Sua senha" required />
-        <button type="submit" id="btn-login">Entrar</button>
-        <button type="button" id="btn-forgot-password" class="btn-secondary">Esqueci minha senha</button>
-        <button type="button" id="btn-register" class="btn-secondary">Cadastrar</button>
-        <button type="button" id="btn-google-login" class="btn-google">Entrar com Conta do Google</button>
+        <input type="email" id="email" placeholder="E-mail" required />
+        <input type="password" id="password" placeholder="Senha" required />
+        
+        <button type="submit" class="btn-primary">Entrar</button>
       </form>
+
+      <div class="auth-actions">
+        <button id="btn-register" class="btn-secondary">Cadastrar Conta</button>
+        <button id="btn-forgot-password" class="btn-link">Esqueceu a senha?</button>
+      </div>
+
+      <div class="divider">ou</div>
+
+      <button id="btn-google-login" class="btn-google">
+        Entrar com Google
+      </button>
     </div>
   </div>
 
-  <!-- Tela Principal do Mapa -->
-  <div id="map-screen" class="screen hidden">
-    
-    <!-- Cabeçalho / Barra Superior -->
+  <!-- TELA DO MAPA -->
+  <div id="map-screen" class="map-container hidden">
+    <!-- BARRA SUPERIOR (HEADER) -->
     <header class="app-header">
-      <button id="btn-open-drawer" class="icon-btn" aria-label="Abrir Menu">☰</button>
+      <button id="btn-open-drawer" class="btn-icon">☰ Menu</button>
       <h1>Rio Localizador</h1>
-      <button id="btn-logout">Sair</button>
+      <button id="btn-logout" class="btn-icon btn-logout">Sair</button>
     </header>
 
-    <!-- Camada de Fundo Escuro para Fechar o Menu -->
+    <!-- MAPA LEAFLET -->
+    <div id="map"></div>
+
+    <!-- BOTÕES FLUTUANTES NO MAPA -->
+    <div class="map-controls">
+      <button id="btn-recenter" class="btn-fab" title="Centralizar em mim">🎯</button>
+    </div>
+
+    <!-- OVERLAY DO DRAWER -->
     <div id="drawer-overlay" class="drawer-overlay hidden"></div>
 
-    <!-- Menu Lateral Dobrável (Drawer) -->
+    <!-- MENU LATERAL (DRAWER) -->
     <aside id="drawer" class="drawer">
       <div class="drawer-header">
-        <h2>Contatos e Solicitações</h2>
-        <button id="btn-close-drawer" class="close-btn">&times;</button>
+        <h2>Menu & Opções</h2>
+        <button id="btn-close-drawer" class="btn-icon">✕</button>
       </div>
 
       <div class="drawer-content">
-        <!-- Adicionar Amigo -->
-        <section class="drawer-section">
+        <!-- SEÇÃO: CADASTRO DIRETO DE CONTATOS (ADMINISTRADOR) -->
+        <div class="drawer-section">
+          <h3>Cadastrar Contato no App</h3>
+          <p class="section-desc">Cadastre e-mail e telefone de amigos para ficarem disponíveis no sistema imediatamente.</p>
+          <button id="btn-admin-register-user" class="btn-primary" style="background-color: #16a34a; margin-top: 5px; width: 100%;">
+            + Cadastrar Contato no Firebase
+          </button>
+        </div>
+
+        <!-- SEÇÃO: MEU PERFIL & PRIVACIDADE -->
+        <div class="drawer-section">
+          <h3>Meu Perfil & Privacidade</h3>
+          <button id="btn-toggle-history" class="btn-secondary">Ver Meu Trajeto (30 dias)</button>
+          <button id="btn-update-phone" class="btn-secondary" style="margin-top: 5px;">Atualizar Meu Telefone</button>
+          <button id="btn-toggle-privacy" class="btn-warning hidden" style="margin-top: 5px;">Privacidade: Histórico Oculto (Privado)</button>
+        </div>
+
+        <!-- SEÇÃO: ADICIONAR AMIGO -->
+        <div class="drawer-section">
           <h3>Adicionar Amigo</h3>
           <form id="add-friend-form">
+            <label for="friend-search-type">Buscar por:</label>
             <select id="friend-search-type">
-              <option value="email">Buscar por E-mail</option>
-              <option value="phone">Buscar por Telefone</option>
+              <option value="email">E-mail</option>
+              <option value="phone">Telefone (DDD + número)</option>
             </select>
-            <input type="email" id="friend-email-input" placeholder="E-mail do contato..." required />
-            <input type="tel" id="friend-phone-input" placeholder="Telefone (ex: 21999998888)" class="hidden" />
-            <button type="submit">Enviar Pedido</button>
+
+            <input type="email" id="friend-email-input" placeholder="Digite o e-mail do amigo" required />
+            <input type="tel" id="friend-phone-input" placeholder="Ex: 21999998888" class="hidden" />
+
+            <button type="submit" class="btn-primary" style="margin-top: 8px;">Enviar Solicitação</button>
           </form>
-        </section>
+        </div>
 
-        <!-- Ações do Perfil -->
-        <section class="drawer-section">
-          <h3>Configurações de Conta</h3>
-          <!-- Botão que só é mantido ativo para a conta Admin -->
-          <button id="btn-toggle-privacy" class="btn-privacy hidden">Privacidade: Histórico Oculto (Privado)</button>
-          <button id="btn-update-phone" class="btn-secondary-action">Cadastrar/Alterar Telefone</button>
-        </section>
-
-        <!-- Solicitações Pendentes -->
-        <section class="drawer-section">
-          <h3>Solicitações Pendentes</h3>
-          <div id="pending-requests-list" class="requests-list">
-            <!-- Itens inseridos dinamicamente via JS -->
+        <!-- SEÇÃO: SOLICITAÇÕES PENDENTES -->
+        <div class="drawer-section">
+          <h3>Solicitações Recebidas</h3>
+          <div id="pending-requests-list" class="list-container">
+            <p class="empty-msg">Nenhuma solicitação pendente.</p>
           </div>
-        </section>
+        </div>
 
-        <!-- Lista de Amigos / Trajetos -->
-        <section class="drawer-section">
+        <!-- SEÇÃO: LISTA DE AMIGOS -->
+        <div class="drawer-section">
           <h3>Meus Contatos</h3>
-          <div id="friends-list" class="friends-list">
-            <!-- Lista dinâmica de amigos -->
+          <div id="friends-list" class="list-container">
+            <p class="empty-msg">Nenhum amigo adicionado.</p>
           </div>
-          <button id="btn-toggle-history" class="btn-history">Ver Meu Trajeto (30 dias)</button>
-        </section>
+        </div>
       </div>
     </aside>
-
-    <!-- Recipiente do Mapa Leaflet -->
-    <div id="map"></div>
-
-    <!-- Barra de Controle Inferior -->
-    <footer class="app-controls">
-      <button id="btn-recenter">Centralizar no Meu GPS</button>
-    </footer>
   </div>
 
-  <!-- SDKs do Firebase -->
+  <!-- Firebase Scripts (Compat SDK) -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
@@ -109,7 +128,7 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Script Principal -->
+  <!-- JS Principal -->
   <script src="app.js"></script>
 </body>
 </html>

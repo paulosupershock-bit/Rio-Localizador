@@ -9,10 +9,14 @@ const firebaseConfig = {
   appId: "1:698167641664:web:fd4d41f8c221a460e401a5"
 };
 
-// Inicializa o Firebase
+// Inicializa o Firebase Principal
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const database = firebase.database();
+
+// Inicializa Instância Secundária do Firebase para cadastrar contatos sem deslogar o admin
+const secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryApp");
+const secondaryAuth = secondaryApp.auth();
 
 // Variáveis Globais
 let map = null;
@@ -48,6 +52,7 @@ const friendsList = document.getElementById("friends-list");
 const btnMyHistory = document.getElementById("btn-toggle-history");
 const btnUpdatePhone = document.getElementById("btn-update-phone");
 let btnTogglePrivacy = document.getElementById("btn-toggle-privacy");
+const btnAdminRegisterUser = document.getElementById("btn-admin-register-user");
 
 // --- FUNÇÃO AUXILIAR DE PADRONIZAÇÃO DE TELEFONE ---
 function formatPhoneNumber(phoneInput) {
@@ -87,12 +92,50 @@ if ("Notification" in window && Notification.permission !== "granted") {
   Notification.requestPermission();
 }
 
+// --- CADASTRO DIRETO DE CONTATOS PELO MENU (ADMINISTRADOR) ---
+if (btnAdminRegisterUser) {
+  btnAdminRegisterUser.addEventListener("click", async () => {
+    const email = prompt("Digite o E-MAIL do novo contato que deseja cadastrar:");
+    if (!email || !email.includes("@")) {
+      alert("E-mail inválido ou ação cancelada.");
+      return;
+    }
+
+    const rawPhone = prompt("Digite o TELEFONE com DDD do contato (ex: 21999998888):") || "";
+    const cleanedPhone = formatPhoneNumber(rawPhone);
+    const userEmail = email.toLowerCase().trim();
+    
+    // Senha padrão temporária para o usuário conseguir logar depois
+    const tempPassword = "User123456"; 
+
+    try {
+      // 1. Cria a conta no Firebase Auth sem alterar a sua sessão de administrador atual
+      const userCred = await secondaryAuth.createUserWithEmailAndPassword(userEmail, tempPassword);
+      const newUid = userCred.user.uid;
+
+      // 2. Salva as informações do novo usuário no Realtime Database com histórico visível por padrão
+      await database.ref(`users/${newUid}`).set({
+        email: userEmail,
+        phone: cleanedPhone,
+        isHistoryPrivate: false
+      });
+
+      // 3. Desloga a sessão temporária secundária
+      await secondaryAuth.signOut();
+
+      alert(`✅ Usuário cadastrado com sucesso!\n\nE-mail: ${userEmail}\nSenha provisória: ${tempPassword}\n\nAgora você já pode enviar a solicitação para ele no campo "Adicionar Amigo".`);
+    } catch (error) {
+      alert("Erro ao cadastrar novo usuário: " + error.message);
+    }
+  });
+}
+
 // --- GERENCIAMENTO EXCLUSIVO DE PRIVACIDADE DO ADMINISTRADOR ---
 function listenToMyPrivacy(uid) {
   const user = auth.currentUser;
   
-  // ⚠️ DIGITE SEU E-MAIL EXATO DE ADMINISTRADOR ABAIXO (EM LETRAS MINÚSCULAS):
-  const ADMIN_EMAIL = "paulo.supershock@gmail.com"; 
+  // ALTERE AQUI PARA O SEU E-MAIL DE ADMINISTRADOR
+  const ADMIN_EMAIL = "seuemail@exemplo.com"; 
 
   const isUserAdmin = user && user.email && user.email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
 
@@ -113,6 +156,7 @@ function listenToMyPrivacy(uid) {
       }
     });
   } else {
+    // Se não for o administrador, remove o botão de privacidade da interface
     if (btnTogglePrivacy && btnTogglePrivacy.parentNode) {
       btnTogglePrivacy.parentNode.removeChild(btnTogglePrivacy);
       btnTogglePrivacy = null;
@@ -139,14 +183,14 @@ if (btnTogglePrivacy) {
   });
 }
 
-// Login
+// Login Normal
 loginForm.addEventListener("submit", (e) => {
   e.preventDefault();
   auth.signInWithEmailAndPassword(emailInput.value, passwordInput.value)
     .catch((error) => alert("Erro ao entrar: " + error.message));
 });
 
-// Cadastro de Usuário
+// Cadastro Normal (Tela de Login)
 btnRegister.addEventListener("click", () => {
   if (!emailInput.value || !passwordInput.value) {
     alert("Preencha e-mail e senha para cadastrar.");
@@ -214,7 +258,7 @@ if (btnGoogleLogin) {
   });
 }
 
-// Botão de Atualizar/Cadastrar Telefone
+// Botão de Atualizar Telefone
 if (btnUpdatePhone) {
   btnUpdatePhone.addEventListener("click", () => {
     const user = auth.currentUser;
@@ -239,7 +283,7 @@ if (btnUpdatePhone) {
 
 btnLogout.addEventListener("click", () => auth.signOut());
 
-// Estado de Autenticação
+// Monitor de Estado de Autenticação
 auth.onAuthStateChanged((user) => {
   if (user) {
     authScreen.classList.add("hidden");
@@ -259,7 +303,7 @@ auth.onAuthStateChanged((user) => {
   }
 });
 
-// Mapa Leaflet
+// Inicialização do Mapa Leaflet
 function initMap() {
   if (map) return;
   const rioCoords = [-22.9068, -43.1729];
@@ -305,8 +349,7 @@ function startLocationTracking(uid) {
   );
 }
 
-// --- GERENCIAMENTO E ADIÇÃO DE AMIGOS (MELHORADO E CORRIGIDO) ---
-
+// --- GERENCIAMENTO DE AMIGOS ---
 if (friendSearchType) {
   friendSearchType.addEventListener("change", () => {
     if (friendSearchType.value === "email") {
@@ -329,7 +372,6 @@ if (addFriendForm) {
 
     const searchType = friendSearchType ? friendSearchType.value : "email";
     
-    // Busca ampla na lista inteira de usuários para evitar falhas de indexação do Realtime DB
     database.ref('users').once('value', (snapshot) => {
       if (!snapshot.exists()) {
         alert("Nenhum usuário cadastrado no sistema.");
@@ -449,7 +491,7 @@ window.rejectFriendRequest = function(friendUid) {
   database.ref().update(updates);
 };
 
-// --- RENDERIZAR ITEM DA LISTA DE AMIGOS COM BOTÃO ALTERNANTE ---
+// RENDERIZAR ITEM DA LISTA DE AMIGOS
 function renderFriendItem(friendUid, friendIdentifier) {
   const div = document.createElement("div");
   div.className = "friend-item";
@@ -542,7 +584,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// --- FUNÇÃO PARA MANIPULAR E ALTERNAR O DESENHO DA ROTA ---
+// --- DESENHO E EXIBIÇÃO DA ROTA ---
 window.toggleUserRoute = function(targetUid, title, buttonElem) {
   if (activePolylineUid === targetUid && currentPolyline) {
     clearCurrentRoute();
@@ -589,61 +631,72 @@ function resetButtonState(targetUid, buttonElem) {
 function fetchAndDrawHistory(targetUid, title, buttonElem) {
   const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
 
-  database.ref(`location_history/${targetUid}`).once('value')
-    .then((snapshot) => {
-      if (!snapshot.exists()) {
-        alert(`Nenhum histórico registrado no banco para ${title}.`);
-        return;
-      }
+  // Checa primeiro se a pessoa ocultou a privacidade
+  database.ref(`users/${targetUid}/isHistoryPrivate`).once('value', (privacySnap) => {
+    const isPrivate = privacySnap.exists() ? privacySnap.val() === true : false;
+    const isMe = auth.currentUser && auth.currentUser.uid === targetUid;
 
-      const latLngs = [];
+    if (isPrivate && !isMe) {
+      alert(`O usuário ${title} definiu o histórico de 30 dias como privado.`);
+      return;
+    }
 
-      snapshot.forEach((child) => {
-        const val = child.val();
-        if (
-          val &&
-          typeof val.latitude === 'number' &&
-          typeof val.longitude === 'number'
-        ) {
-          const ts = typeof val.timestamp === 'number' ? val.timestamp : Date.now();
-          if (ts >= thirtyDaysAgo) {
-            latLngs.push([val.latitude, val.longitude]);
-          }
+    database.ref(`location_history/${targetUid}`).once('value')
+      .then((snapshot) => {
+        if (!snapshot.exists()) {
+          alert(`Nenhum histórico registrado no banco para ${title}.`);
+          return;
         }
+
+        const latLngs = [];
+
+        snapshot.forEach((child) => {
+          const val = child.val();
+          if (
+            val &&
+            typeof val.latitude === 'number' &&
+            typeof val.longitude === 'number'
+          ) {
+            const ts = typeof val.timestamp === 'number' ? val.timestamp : Date.now();
+            if (ts >= thirtyDaysAgo) {
+              latLngs.push([val.latitude, val.longitude]);
+            }
+          }
+        });
+
+        if (latLngs.length === 0) {
+          alert(`Nenhum trajeto encontrado nos últimos 30 dias para ${title}.`);
+          return;
+        }
+
+        if (latLngs.length === 1) {
+          map.setView(latLngs[0], 16);
+          L.popup()
+            .setLatLng(latLngs[0])
+            .setContent(`<b>Único ponto registrado de ${title}</b>`)
+            .openOn(map);
+        } else {
+          currentPolyline = L.polyline(latLngs, { 
+            color: '#0052d4', 
+            weight: 5, 
+            opacity: 0.8 
+          }).addTo(map);
+
+          map.fitBounds(currentPolyline.getBounds(), { padding: [40, 40] });
+        }
+
+        activePolylineUid = targetUid;
+
+        if (buttonElem) {
+          buttonElem.innerText = "❌ Ocultar Trajeto";
+          buttonElem.style.backgroundColor = "#ef4444";
+        }
+
+        closeDrawer();
+      })
+      .catch((error) => {
+        console.error("Erro ao carregar histórico:", error);
+        alert("Erro ao buscar histórico: " + error.message);
       });
-
-      if (latLngs.length === 0) {
-        alert(`Nenhum trajeto encontrado nos últimos 30 dias para ${title}.`);
-        return;
-      }
-
-      if (latLngs.length === 1) {
-        map.setView(latLngs[0], 16);
-        L.popup()
-          .setLatLng(latLngs[0])
-          .setContent(`<b>Único ponto registrado de ${title}</b>`)
-          .openOn(map);
-      } else {
-        currentPolyline = L.polyline(latLngs, { 
-          color: '#0052d4', 
-          weight: 5, 
-          opacity: 0.8 
-        }).addTo(map);
-
-        map.fitBounds(currentPolyline.getBounds(), { padding: [40, 40] });
-      }
-
-      activePolylineUid = targetUid;
-
-      if (buttonElem) {
-        buttonElem.innerText = "❌ Ocultar Trajeto";
-        buttonElem.style.backgroundColor = "#ef4444";
-      }
-
-      closeDrawer();
-    })
-    .catch((error) => {
-      console.error("Erro ao carregar histórico:", error);
-      alert("Erro ao buscar histórico: " + error.message);
-    });
+  });
 }
