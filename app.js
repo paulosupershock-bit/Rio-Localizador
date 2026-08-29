@@ -20,7 +20,7 @@ let userMarker = null;
 let watchId = null;
 const otherMarkers = {};
 let currentPolyline = null;
-let btnClearRoute = null;
+let activePolylineUid = null; // Controla qual UID está com a rota exibida
 const alertedFriends = new Set();
 
 // Elementos da DOM
@@ -273,45 +273,12 @@ function initMap() {
     if (userMarker) map.setView(userMarker.getLatLng(), 16);
   });
 
+  // Alterna o meu próprio trajeto
   btnMyHistory.addEventListener("click", () => {
-    if (auth.currentUser) drawUserHistory(auth.currentUser.uid, "Meu Trajeto");
-  });
-
-  initClearRouteButton();
-}
-
-// Criação dinâmica do botão de limpar rota na tela do mapa
-function initClearRouteButton() {
-  if (!btnClearRoute) {
-    btnClearRoute = document.createElement("button");
-    btnClearRoute.id = "btn-clear-route";
-    btnClearRoute.innerText = "❌ Limpar Trajeto";
-    btnClearRoute.style.position = "absolute";
-    btnClearRoute.style.bottom = "80px";
-    btnClearRoute.style.right = "20px";
-    btnClearRoute.style.zIndex = "1000";
-    btnClearRoute.style.padding = "10px 15px";
-    btnClearRoute.style.backgroundColor = "#ef4444";
-    btnClearRoute.style.color = "white";
-    btnClearRoute.style.border = "none";
-    btnClearRoute.style.borderRadius = "8px";
-    btnClearRoute.style.cursor = "pointer";
-    btnClearRoute.style.boxShadow = "0 4px 6px rgba(0,0,0,0.1)";
-    btnClearRoute.style.display = "none";
-
-    const mapScreenElem = document.getElementById("map-screen");
-    if (mapScreenElem) {
-      mapScreenElem.appendChild(btnClearRoute);
+    if (auth.currentUser) {
+      toggleUserRoute(auth.currentUser.uid, "Meu Trajeto", btnMyHistory);
     }
-
-    btnClearRoute.addEventListener("click", () => {
-      if (currentPolyline) {
-        map.removeLayer(currentPolyline);
-        currentPolyline = null;
-      }
-      btnClearRoute.style.display = "none";
-    });
-  }
+  });
 }
 
 // Rastreamento GPS Próprio
@@ -469,7 +436,7 @@ window.rejectFriendRequest = function(friendUid) {
   database.ref().update(updates);
 };
 
-// --- RENDERIZAR ITEM DA LISTA DE AMIGOS COM BOTÃO DE HISTÓRICO DE 30 DIAS ---
+// --- RENDERIZAR ITEM DA LISTA DE AMIGOS COM BOTÃO ALTERNANTE ---
 function renderFriendItem(friendUid, friendIdentifier) {
   const div = document.createElement("div");
   div.className = "friend-item";
@@ -480,7 +447,7 @@ function renderFriendItem(friendUid, friendIdentifier) {
       <strong>${friendIdentifier}</strong>
       <small id="time-status-${friendUid}" class="time-status">Aguardando dados...</small>
     </div>
-    <button class="btn-history-small" onclick="drawUserHistory('${friendUid}', '${friendIdentifier}')">Ver Trajeto (30 dias)</button>
+    <button id="btn-route-${friendUid}" class="btn-history-small" onclick="toggleUserRoute('${friendUid}', '${friendIdentifier}', this)">Ver Trajeto (30d)</button>
   `;
 
   friendsList.appendChild(div);
@@ -562,12 +529,56 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// --- HISTÓRICO DE TRAJETO DE 30 DIAS ---
-window.drawUserHistory = function(targetUid, title = "Trajeto") {
-  fetchAndDrawHistory(targetUid, title);
+// --- FUNÇÃO PARA MANIPULAR E ALTERNAR O DESENHO DA ROTA ---
+window.toggleUserRoute = function(targetUid, title, buttonElem) {
+  // Se a rota desse mesmo usuário já estiver na tela, limpa e reseta
+  if (activePolylineUid === targetUid && currentPolyline) {
+    clearCurrentRoute();
+    resetButtonState(targetUid, buttonElem);
+    return;
+  }
+
+  // Caso haja outra rota desenhada no mapa, limpa a rota anterior
+  clearCurrentRoute();
+
+  // Carrega e desenha a rota de 30 dias
+  fetchAndDrawHistory(targetUid, title, buttonElem);
 };
 
-function fetchAndDrawHistory(targetUid, title) {
+function clearCurrentRoute() {
+  if (currentPolyline) {
+    map.removeLayer(currentPolyline);
+    currentPolyline = null;
+  }
+  
+  if (activePolylineUid) {
+    const prevBtn = document.getElementById(`btn-route-${activePolylineUid}`);
+    if (prevBtn) {
+      prevBtn.innerText = "Ver Trajeto (30d)";
+      prevBtn.style.backgroundColor = "";
+    }
+  }
+
+  // Reseta também o botão 'Ver Meu Trajeto' se for do próprio usuário
+  if (activePolylineUid === (auth.currentUser ? auth.currentUser.uid : null)) {
+    if (btnMyHistory) btnMyHistory.innerText = "Ver Meu Trajeto (30 dias)";
+  }
+
+  activePolylineUid = null;
+}
+
+function resetButtonState(targetUid, buttonElem) {
+  if (!buttonElem) return;
+
+  if (targetUid === (auth.currentUser ? auth.currentUser.uid : null)) {
+    buttonElem.innerText = "Ver Meu Trajeto (30 dias)";
+  } else {
+    buttonElem.innerText = "Ver Trajeto (30d)";
+  }
+  buttonElem.style.backgroundColor = "";
+}
+
+function fetchAndDrawHistory(targetUid, title, buttonElem) {
   const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
 
   database.ref(`location_history/${targetUid}`).once('value')
@@ -593,11 +604,6 @@ function fetchAndDrawHistory(targetUid, title) {
         }
       });
 
-      if (currentPolyline) {
-        map.removeLayer(currentPolyline);
-        currentPolyline = null;
-      }
-
       if (latLngs.length === 0) {
         alert(`Nenhum trajeto encontrado nos últimos 30 dias para ${title}.`);
         return;
@@ -619,9 +625,12 @@ function fetchAndDrawHistory(targetUid, title) {
         map.fitBounds(currentPolyline.getBounds(), { padding: [40, 40] });
       }
 
-      // Exibe o botão flutuante de limpar rota no mapa
-      if (btnClearRoute) {
-        btnClearRoute.style.display = "block";
+      activePolylineUid = targetUid;
+
+      // Alterna o texto do botão ativado para indicar a limpeza
+      if (buttonElem) {
+        buttonElem.innerText = "❌ Ocultar Trajeto";
+        buttonElem.style.backgroundColor = "#ef4444";
       }
 
       closeDrawer();
