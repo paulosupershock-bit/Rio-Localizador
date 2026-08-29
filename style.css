@@ -2,32 +2,27 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-html, body {
+body, html {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: #f0f2f5;
-}
-
-.screen {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  background-color: #f4f6f9;
 }
 
 .hidden {
   display: none !important;
 }
 
-/* --- Tela de Login --- */
-#auth-screen {
-  align-items: center;
+/* --- TELA DE AUTENTICAÇÃO --- */
+.auth-container {
+  display: flex;
   justify-content: center;
-  padding: 20px;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
   background: linear-gradient(135deg, #0052d4, #4364f7, #6fb1fc);
 }
 
@@ -35,169 +30,216 @@ html, body {
   background: #ffffff;
   padding: 30px;
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   width: 100%;
-  max-width: 400px;
+  max-width: 380px;
   text-align: center;
 }
 
 .auth-box h2 {
-  color: #1a1a1a;
+  color: #1e293b;
   margin-bottom: 8px;
 }
 
 .auth-box p {
-  color: #666;
+  color: #64748b;
   font-size: 14px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
-.auth-box input {
+.auth-box form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-box input,
+.drawer-content input,
+.drawer-content select {
   width: 100%;
-  padding: 12px;
-  margin-bottom: 12px;
-  border: 1px solid #ddd;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
-  font-size: 16px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
 }
 
-.auth-box button {
-  width: 100%;
-  padding: 12px;
+.auth-box input:focus,
+.drawer-content input:focus,
+.drawer-content select:focus {
+  border-color: #2563eb;
+}
+
+/* --- BOTÕES --- */
+button {
+  cursor: pointer;
   border: none;
   border-radius: 6px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  background-color: #0052d4;
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: background-color 0.2s, opacity 0.2s;
+}
+
+.btn-primary {
+  background-color: #2563eb;
   color: white;
-  margin-bottom: 8px;
-  transition: background 0.2s;
+}
+.btn-primary:hover { background-color: #1d4ed8; }
+
+.btn-secondary {
+  background-color: #e2e8f0;
+  color: #1e293b;
+  width: 100%;
+}
+.btn-secondary:hover { background-color: #cbd5e1; }
+
+.btn-warning {
+  background-color: #d97706;
+  color: white;
+  width: 100%;
+}
+.btn-warning:hover { background-color: #b45309; }
+
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+}
+.btn-danger:hover { background-color: #dc2626; }
+
+.btn-accept {
+  background-color: #16a34a;
+  color: white;
+}
+.btn-accept:hover { background-color: #15803d; }
+
+.btn-link {
+  background: none;
+  color: #2563eb;
+  font-size: 13px;
+  padding: 4px;
+}
+.btn-link:hover { text-decoration: underline; }
+
+.btn-google {
+  background-color: #ffffff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  width: 100%;
+}
+.btn-google:hover { background-color: #f9fafb; }
+
+.auth-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
 }
 
-.auth-box button:hover {
-  background-color: #003db3;
+.divider {
+  margin: 16px 0;
+  color: #94a3b8;
+  font-size: 12px;
+  position: relative;
 }
 
-.auth-box .btn-secondary {
-  background-color: #e4e6eb;
-  color: #050505;
+/* --- TELA DO MAPA --- */
+.map-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-.auth-box .btn-secondary:hover {
-  background-color: #d8dadf;
-}
-
-/* --- Tela do Mapa --- */
 .app-header {
   height: 56px;
-  background-color: #0052d4;
+  background-color: #1e3a8a;
   color: white;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
 .app-header h1 {
   font-size: 18px;
+  font-weight: 600;
 }
 
-.app-header button {
+.btn-icon {
   background: transparent;
-  border: 1px solid white;
   color: white;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
+  font-size: 16px;
+  padding: 6px 10px;
 }
 
 #map {
   flex: 1;
   width: 100%;
+  height: calc(100vh - 56px);
   z-index: 1;
 }
 
-.app-controls {
+.map-controls {
   position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
+  bottom: 24px;
+  right: 24px;
+  z-index: 500;
 }
 
-#btn-recenter {
-  padding: 12px 20px;
+.btn-fab {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
   background-color: #ffffff;
-  color: #0052d4;
-  border: none;
-  border-radius: 25px;
-  font-weight: bold;
   box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* --- Estilos do Drawer / Menu Lateral --- */
-.icon-btn {
-  background: transparent;
-  border: none;
-  color: white;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 0 8px;
-}
-
+/* --- DRAWER (MENU LATERAL) --- */
 .drawer-overlay {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 1050;
-  transition: opacity 0.3s ease;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1999;
 }
 
 .drawer {
-  position: absolute;
+  position: fixed;
   top: 0;
-  left: -300px;
-  width: 280px;
+  left: -340px;
+  width: 320px;
   height: 100%;
   background-color: #ffffff;
-  z-index: 1100;
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.2);
+  z-index: 2000;
+  box-shadow: 4px 0 16px rgba(0,0,0,0.15);
+  transition: transform 0.3s ease-in-out;
   display: flex;
   flex-direction: column;
-  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .drawer.open {
-  left: 0;
+  transform: translateX(340px);
 }
 
 .drawer-header {
   height: 56px;
-  background-color: #0052d4;
+  background-color: #1e3a8a;
   color: white;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-}
-
-.drawer-header h2 {
-  font-size: 16px;
-}
-
-.close-btn {
-  background: transparent;
-  border: none;
-  color: white;
-  font-size: 24px;
-  cursor: pointer;
 }
 
 .drawer-content {
@@ -207,136 +249,64 @@ html, body {
 }
 
 .drawer-section {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 16px;
 }
 
 .drawer-section h3 {
-  font-size: 14px;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 12px;
-}
-
-.drawer-section select, .drawer-section input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  margin-bottom: 8px;
-  font-size: 14px;
-}
-
-.drawer-section button {
-  width: 100%;
-  padding: 10px;
-  background-color: #0052d4;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-/* Itens de Solicitações Pendentes */
-.pending-request-item {
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  padding: 10px;
-  border-radius: 6px;
-  margin-bottom: 8px;
   font-size: 13px;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
 }
 
-.pending-request-item button {
-  padding: 6px 10px;
-  margin-top: 6px;
-  margin-right: 4px;
-  width: auto;
-}
-
-.btn-danger {
-  background-color: #d32f2f !important;
-}
-
-.btn-history {
-  background-color: #4364f7 !important;
-  margin-top: 12px;
-}
-
-.btn-privacy {
-  background-color: #475569 !important;
-  color: white !important;
+.section-desc {
+  font-size: 12px;
+  color: #64748b;
   margin-bottom: 8px;
-  font-size: 12px !important;
 }
 
-.btn-secondary-action {
-  background-color: #e2e8f0 !important;
-  color: #1e293b !important;
-  font-size: 12px !important;
-}
-
-.btn-google {
-  background-color: #4285F4;
-  color: white;
-  border: none;
-  margin-top: 10px;
-}
-
-.btn-google:hover {
-  background-color: #3367D6;
-}
-
-/* Estilização da Lista de Amigos e Horários */
-.friend-item {
+.list-container {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.empty-msg {
+  font-size: 13px;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.friend-item, .pending-request-item {
+  background-color: #f8fafc;
   padding: 10px;
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
   border-radius: 6px;
-  margin-bottom: 8px;
+  border: 1px solid #e2e8f0;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .friend-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-
-.friend-info strong {
-  font-size: 13px;
-  color: #333;
 }
 
 .time-status {
   font-size: 11px;
 }
 
-.time-status.online {
-  color: #2e7d32;
-}
-
-.time-status.outdated {
-  color: #c62828;
-  font-weight: bold;
-}
+.time-status.online { color: #16a34a; }
+.time-status.outdated { color: #dc2626; }
 
 .btn-history-small {
-  padding: 6px 10px !important;
-  font-size: 11px !important;
-  width: auto !important;
-  background-color: #0052d4 !important;
-}
-
-.btn-accept {
-  background-color: #2e7d32 !important;
-}
-
-.pending-request-item div {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
+  font-size: 11px;
+  padding: 4px 8px;
+  background-color: #2563eb;
+  color: white;
+  align-self: flex-start;
 }
