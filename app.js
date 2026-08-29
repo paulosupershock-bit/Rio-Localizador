@@ -90,7 +90,7 @@ if ("Notification" in window && Notification.permission !== "granted") {
 function listenToMyPrivacy(uid) {
   const user = auth.currentUser;
   
-  // ⚠️ DIGITE SEU E-MAIL EXATO ABAIXO EM LETRAS MINÚSCULAS:
+  // ⚠️ DIGITE SEU E-MAIL EXATO DE ADMINISTRADOR ABAIXO (EM LETRAS MINÚSCULAS):
   const ADMIN_EMAIL = "paulo.supershock@gmail.com"; 
 
   const isUserAdmin = user && user.email && user.email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
@@ -104,11 +104,7 @@ function listenToMyPrivacy(uid) {
 
     const privacyRef = database.ref(`users/${uid}/isHistoryPrivate`);
     privacyRef.on('value', (snap) => {
-      const isPrivate = snap.exists() ? snap.val() === true : true;
-      
-      if (!snap.exists()) {
-        privacyRef.set(true);
-      }
+      const isPrivate = snap.exists() ? snap.val() === true : false;
 
       if (btnTogglePrivacy) {
         btnTogglePrivacy.innerText = isPrivate 
@@ -117,11 +113,12 @@ function listenToMyPrivacy(uid) {
       }
     });
   } else {
-    // SE NÃO FOR O ADMIN: Remove o elemento da tela permanentemente
+    // Para contatos comuns: Remove o botão da tela e garante no banco que a rota fica visível para você
     if (btnTogglePrivacy && btnTogglePrivacy.parentNode) {
       btnTogglePrivacy.parentNode.removeChild(btnTogglePrivacy);
-      btnTogglePrivacy = null; // Anula a referência
+      btnTogglePrivacy = null;
     }
+    database.ref(`users/${uid}/isHistoryPrivate`).set(false);
   }
 }
 
@@ -133,7 +130,7 @@ if (btnTogglePrivacy) {
 
     const privacyRef = database.ref(`users/${user.uid}/isHistoryPrivate`);
     privacyRef.once('value', (snap) => {
-      const currentState = snap.exists() ? snap.val() === true : true;
+      const currentState = snap.exists() ? snap.val() === true : false;
       const newState = !currentState;
 
       privacyRef.set(newState).then(() => {
@@ -165,7 +162,7 @@ btnRegister.addEventListener("click", () => {
       database.ref(`users/${cred.user.uid}`).set({
         email: cred.user.email.toLowerCase(),
         phone: cleanedPhone,
-        isHistoryPrivate: false // Amigos permanecem com histórico liberado por padrão
+        isHistoryPrivate: false // Amigos criam conta com histórico liberado por padrão
       });
       alert("Conta criada com sucesso!");
     })
@@ -196,7 +193,10 @@ if (btnGoogleLogin) {
         
         userRef.once('value', (snapshot) => {
           const userData = snapshot.val() || {};
-          const updates = { email: result.user.email.toLowerCase() };
+          const updates = { 
+            email: result.user.email.toLowerCase(),
+            isHistoryPrivate: false
+          };
           
           if (!userData.phone) {
             const rawPhone = prompt("Bem-vindo! Digite seu telefone com DDD para completar o cadastro (ex: 21999998888):") || "";
@@ -440,7 +440,8 @@ function renderFriendItem(friendUid, friendIdentifier) {
   div.id = `friend-item-${friendUid}`;
 
   database.ref(`users/${friendUid}/isHistoryPrivate`).on('value', (snap) => {
-    const isPrivate = snap.val() === true;
+    // Se não existir valor no banco ou não for estritamente true, assume false (liberado para você ver a rota)
+    const isPrivate = snap.exists() ? snap.val() === true : false;
 
     div.innerHTML = `
       <div class="friend-info">
