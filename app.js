@@ -1,41 +1,186 @@
 /* ==========================================================================
-   RIO LOCALIZADOR - APP.JS (VERSÃO ATUALIZADA)
-   Funcionalidades inclusas:
-   - Cadastro simplificado apenas com Telefone (E-mail opcional)
-   - Adição direta de contato com confirmação automática (Status: Accepted)
-   - Visualização de Localização em Tempo Real e Histórico do Contato
+   RIO LOCALIZADOR - APP.JS (CÓDIGO COMPLETO E UNIFICADO)
    ========================================================================== */
 
 // --- CONFIGURAÇÃO E INICIALIZAÇÃO DO FIREBASE ---
-const db = firebase.database();
-const auth = firebase.auth();
+const firebaseConfig = {
+  apiKey: "AIzaSyBNkf6_wsmi3lH53oZyY50YDWt7mCAdwzk",
+  authDomain: "riolocalizador.firebaseapp.com",
+  databaseURL: "https://riolocalizador-default-rtdb.firebaseio.com",
+  projectId: "riolocalizador",
+  storageBucket: "riolocalizador.firebasestorage.app",
+  messagingSenderId: "698167641664",
+  appId: "1:698167641664:web:fd4d41f8c221a460e401a5"
+};
 
-// --- ELEMENTOS DO DOM ---
-const btnAdminRegisterUser = document.getElementById("btnAdminRegisterUser");
-const contactsListElement = document.getElementById("contactsList");
-
-// --- UTILS: FORMATAÇÃO DE TELEFONE ---
-function formatPhoneNumber(phone) {
-  let cleaned = ('' + phone).replace(/\D/g, '');
-  if (!cleaned) return '';
-  // Se não tiver código de país (+55 para Brasil), adiciona por padrão
-  if (cleaned.length === 10 || cleaned.length === 11) {
-    cleaned = '55' + cleaned;
-  }
-  return '+' + cleaned;
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
 }
 
+const auth = firebase.auth();
+const database = firebase.database();
+
+// ⚠️ ALTERE ABAIXO PARA O SEU E-MAIL DE ADMINISTRADOR ⚠️
+const ADMIN_EMAIL = "paulo.supershock@gmail.com";
+
+// --- VARIÁVEIS GLOBAIS DO MAPA ---
+let map = null;
+let userMarker = null;
+let watchId = null;
+const otherMarkers = {};
+let currentPolyline = null;
+let activePolylineUid = null;
+
+// --- ELEMENTOS DO DOM ---
+const authScreen = document.getElementById("auth-screen");
+const mapScreen = document.getElementById("map-screen");
+const loginForm = document.getElementById("login-form");
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+const btnRegister = document.getElementById("btn-register");
+const btnLogout = document.getElementById("btn-logout");
+const btnForgotPassword = document.getElementById("btn-forgot-password");
+const btnGoogleLogin = document.getElementById("btn-google-login");
+const btnRecenter = document.getElementById("btn-recenter");
+
+// Drawer & Ações
+const btnOpenDrawer = document.getElementById("btn-open-drawer");
+const btnCloseDrawer = document.getElementById("btn-close-drawer");
+const drawer = document.getElementById("drawer");
+const overlay = document.getElementById("drawer-overlay");
+const friendsList = document.getElementById("friends-list") || document.getElementById("contactsList");
+const btnMyHistory = document.getElementById("btn-toggle-history");
+const btnUpdatePhone = document.getElementById("btn-update-phone");
+const btnTogglePrivacy = document.getElementById("btn-toggle-privacy");
+const btnAdminRegisterUser = document.getElementById("btn-admin-register-user") || document.getElementById("btnAdminRegisterUser");
+
+// --- UTILS: FORMATAÇÃO DE TELEFONE ---
+function formatPhoneNumber(phoneInput) {
+  if (!phoneInput) return "";
+  let cleaned = ('' + phoneInput).replace(/\D/g, "");
+  if (!cleaned) return "";
+
+  if (cleaned.length === 10 || cleaned.length === 11) {
+    cleaned = "55" + cleaned;
+  }
+  return "+" + cleaned;
+}
+
+// --- CONTROLE DO MENU LATERAL (DRAWER) ---
+function openDrawer() {
+  if (drawer) drawer.classList.add("open");
+  if (overlay) overlay.classList.remove("hidden");
+}
+
+function closeDrawer() {
+  if (drawer) drawer.classList.remove("open");
+  if (overlay) overlay.classList.add("hidden");
+}
+
+if (btnOpenDrawer) btnOpenDrawer.addEventListener("click", openDrawer);
+if (btnCloseDrawer) btnCloseDrawer.addEventListener("click", closeDrawer);
+if (overlay) overlay.addEventListener("click", closeDrawer);
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && drawer && drawer.classList.contains('open')) {
+    closeDrawer();
+  }
+});
+
 // ==========================================================================
-// 1. CADASTRO DE CONTATO COM CONFIRMAÇÃO AUTOMÁTICA DE AMIZADE
+// 1. AUTENTICAÇÃO (LOGIN, GOOGLE, CADASTRAR-SE)
+// ==========================================================================
+
+// Login E-mail e Senha
+if (loginForm) {
+  loginForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    auth.signInWithEmailAndPassword(emailInput.value, passwordInput.value)
+      .catch((error) => alert("Erro ao entrar: " + error.message));
+  });
+}
+
+// Login com Google
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+if (btnGoogleLogin) {
+  btnGoogleLogin.addEventListener("click", () => {
+    auth.signInWithPopup(googleProvider)
+      .then((result) => {
+        const userRef = database.ref(`users/${result.user.uid}`);
+        userRef.once('value', (snapshot) => {
+          const userData = snapshot.val() || {};
+          const updates = { 
+            email: result.user.email.toLowerCase().trim(),
+            displayName: result.user.displayName || result.user.email,
+            uid: result.user.uid,
+            isHistoryPrivate: false
+          };
+          
+          if (!userData.phone) {
+            const rawPhone = prompt("Bem-vindo! Digite seu telefone com DDD para completar o cadastro (ex: 21999998888):") || "";
+            updates.phone = formatPhoneNumber(rawPhone);
+          }
+          
+          userRef.update(updates);
+        });
+      })
+      .catch((error) => {
+        if (error.code !== "auth/popup-closed-by-user") {
+          alert("Erro no Google Login: " + error.message);
+        }
+      });
+  });
+}
+
+// Criar Conta Própria
+if (btnRegister) {
+  btnRegister.addEventListener("click", () => {
+    if (!emailInput.value || !passwordInput.value) {
+      alert("Preencha e-mail e senha para cadastrar.");
+      return;
+    }
+    
+    const rawPhone = prompt("Digite seu telefone com DDD (ex: 21999998888):") || "";
+    const cleanedPhone = formatPhoneNumber(rawPhone);
+    const userEmail = emailInput.value.toLowerCase().trim();
+
+    auth.createUserWithEmailAndPassword(userEmail, passwordInput.value)
+      .then((cred) => {
+        database.ref(`users/${cred.user.uid}`).set({
+          uid: cred.user.uid,
+          email: userEmail,
+          phone: cleanedPhone,
+          displayName: userEmail,
+          isHistoryPrivate: false
+        });
+        alert("Conta criada com sucesso!");
+      })
+      .catch((error) => alert("Erro ao cadastrar: " + error.message));
+  });
+}
+
+// Esqueceu a Senha
+if (btnForgotPassword) {
+  btnForgotPassword.addEventListener("click", () => {
+    if (!emailInput.value) {
+      alert("Digite seu e-mail para recuperar a senha.");
+      return;
+    }
+    auth.sendPasswordResetEmail(emailInput.value.trim().toLowerCase())
+      .then(() => alert("E-mail de redefinição enviado! Cheque sua caixa de entrada."))
+      .catch((error) => alert("Erro: " + error.message));
+  });
+}
+
+if (btnLogout) btnLogout.addEventListener("click", () => auth.signOut());
+
+// ==========================================================================
+// 2. CADASTRO DE CONTATO DIRETO POR TELEFONE COM APROVAÇÃO AUTOMÁTICA
 // ==========================================================================
 if (btnAdminRegisterUser) {
   btnAdminRegisterUser.addEventListener("click", async () => {
-    // Solicita o Telefone (Obrigatório)
     const rawPhone = prompt("Digite o TELEFONE com DDD do contato (ex: 21999998888):");
-    if (!rawPhone) {
-      alert("Operação cancelada: Telefone não informado.");
-      return;
-    }
+    if (!rawPhone) return;
 
     const cleanedPhone = formatPhoneNumber(rawPhone);
     if (!cleanedPhone || cleanedPhone.length < 12) {
@@ -43,174 +188,342 @@ if (btnAdminRegisterUser) {
       return;
     }
 
-    // Solicita o E-mail (Opcional)
     const optionalEmail = prompt("Digite o E-MAIL do contato (OPCIONAL - pode deixar em branco):") || "";
     const userEmail = optionalEmail.trim().toLowerCase();
-
-    // Solicita o Nome de Exibição
-    const displayName = prompt("Digite o NOME do contato para exibição:") || cleanedPhone;
+    const displayName = prompt("Digite o NOME do contato:") || cleanedPhone;
 
     try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        alert("Erro: Você precisa estar logado para cadastrar um contato.");
-        return;
-      }
-      const myUid = currentUser.uid;
-
-      // 1. Gera uma nova chave/ID único no nó 'users' do Realtime Database
-      const newUserRef = db.ref('users').push();
+      const myUid = auth.currentUser.uid;
+      const newUserRef = database.ref('users').push();
       const newFriendUid = newUserRef.key;
 
-      // 2. Prepara atualização em lote (atomic update)
       const updates = {};
-
-      // Dados do Perfil do Novo Contato
       updates[`/users/${newFriendUid}`] = {
         uid: newFriendUid,
         phone: cleanedPhone,
         email: userEmail,
         displayName: displayName,
         isHistoryPrivate: false,
-        createdManual: true,
-        createdAt: firebase.database.ServerValue.TIMESTAMP,
-        lastLocation: {
-          latitude: 0,
-          longitude: 0,
-          timestamp: Date.now()
-        }
+        createdManual: true
       };
 
-      // Establece Vínculo de Amizade Confirmada (Accepted) para ambos
+      // Define como aceito em ambas as partes automaticamente
       updates[`/friendships/${myUid}/${newFriendUid}`] = "accepted";
       updates[`/friendships/${newFriendUid}/${myUid}`] = "accepted";
 
-      // 3. Grava no Firebase Realtime Database
-      await db.ref().update(updates);
-
-      alert(`✅ Contato cadastrado e vinculado com sucesso!\n\n` +
-            `Nome: ${displayName}\n` +
-            `Telefone: ${cleanedPhone}\n` +
-            `Status: Amizade Confirmada Automática\n\n` +
-            `O contato já está disponível na sua lista "MEUS CONTATOS".`);
-
-      // Atualiza a interface
-      loadContactsList();
-
+      await database.ref().update(updates);
+      alert(`✅ Contato ${displayName} cadastrado e vinculado com sucesso!`);
+      loadContactsList(myUid);
     } catch (error) {
-      console.error("Erro ao cadastrar contato:", error);
       alert("Erro ao cadastrar contato: " + error.message);
     }
   });
 }
 
-// ==========================================================================
-// 2. CARREGAMENTO E EXIBIÇÃO DA LISTA DE CONTATOS (COM LOCALIZAÇÃO E HISTÓRICO)
-// ==========================================================================
-function loadContactsList() {
-  const currentUser = auth.currentUser;
-  if (!currentUser) return;
-  const myUid = currentUser.uid;
+// Atualizar Telefone Próprio
+if (btnUpdatePhone) {
+  btnUpdatePhone.addEventListener("click", () => {
+    const user = auth.currentUser;
+    if (!user) return;
 
-  // Escuta os vínculos de amizade do usuário logado
-  db.ref(`friendships/${myUid}`).on('value', async (snapshot) => {
-    if (!contactsListElement) return;
-    contactsListElement.innerHTML = '';
+    const rawPhone = prompt("Digite seu novo telefone com DDD (ex: 21999998888):");
+    const cleanedPhone = formatPhoneNumber(rawPhone);
 
-    const friendships = snapshot.val();
-    if (!friendships) {
-      contactsListElement.innerHTML = '<li class="empty">Nenhum contato adicionado.</li>';
+    if (!cleanedPhone || cleanedPhone.length < 12) {
+      alert("Por favor, digite um número válido com DDD.");
       return;
     }
 
-    // Para cada amigo com status 'accepted'
+    database.ref(`users/${user.uid}`).update({ phone: cleanedPhone })
+      .then(() => alert("Seu telefone foi atualizado com sucesso!"))
+      .catch((error) => alert("Erro ao salvar telefone: " + error.message));
+  });
+}
+
+// ==========================================================================
+// 3. MONITORAMENTO DE SESSÃO, MAPA E GPS
+// ==========================================================================
+auth.onAuthStateChanged((user) => {
+  if (user) {
+    if (authScreen) authScreen.classList.add("hidden");
+    if (mapScreen) mapScreen.classList.remove("hidden");
+    
+    setTimeout(() => {
+      initMap();
+      if (map) map.invalidateSize();
+    }, 200);
+
+    startLocationTracking(user.uid);
+    checkAdminPrivacy(user);
+    loadContactsList(user.uid);
+  } else {
+    if (watchId) navigator.geolocation.clearWatch(watchId);
+    if (authScreen) authScreen.classList.remove("hidden");
+    if (mapScreen) mapScreen.classList.add("hidden");
+  }
+});
+
+function initMap() {
+  if (map) return;
+  const rioCoords = [-22.9068, -43.1729];
+  map = L.map('map').setView(rioCoords, 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  if (btnRecenter) {
+    btnRecenter.addEventListener("click", () => {
+      if (userMarker) map.setView(userMarker.getLatLng(), 16);
+    });
+  }
+
+  if (btnMyHistory) {
+    btnMyHistory.addEventListener("click", () => {
+      if (auth.currentUser) {
+        toggleUserRoute(auth.currentUser.uid, "Meu Trajeto", btnMyHistory);
+      }
+    });
+  }
+}
+
+function startLocationTracking(uid) {
+  if (!navigator.geolocation) return;
+
+  watchId = navigator.geolocation.watchPosition(
+    (position) => {
+      const { latitude, longitude } = position.coords;
+      const latLng = [latitude, longitude];
+
+      if (!userMarker) {
+        userMarker = L.marker(latLng).addTo(map).bindPopup("Você está aqui");
+        map.setView(latLng, 15);
+      } else {
+        userMarker.setLatLng(latLng);
+      }
+
+      const timestamp = Date.now();
+      database.ref('locations/' + uid).set({ latitude, longitude, timestamp: firebase.database.ServerValue.TIMESTAMP });
+      database.ref(`location_history/${uid}`).push({ latitude, longitude, timestamp });
+    },
+    (error) => console.error("Erro GPS: ", error),
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+// ==========================================================================
+// 4. PRIVACIDADE DE ADMINISTRADOR & LISTA DE CONTATOS
+// ==========================================================================
+function checkAdminPrivacy(user) {
+  const isUserAdmin = user && user.email && user.email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
+
+  if (isUserAdmin && btnTogglePrivacy) {
+    btnTogglePrivacy.classList.remove("hidden");
+    btnTogglePrivacy.style.display = "block";
+
+    database.ref(`users/${user.uid}/isHistoryPrivate`).on('value', (snap) => {
+      const isPrivate = snap.exists() ? snap.val() === true : false;
+      btnTogglePrivacy.innerText = isPrivate 
+        ? "Privacidade: Histórico Oculto (Privado)" 
+        : "Privacidade: Histórico Visível para Amigos";
+    });
+  } else if (btnTogglePrivacy) {
+    btnTogglePrivacy.classList.add("hidden");
+  }
+}
+
+if (btnTogglePrivacy) {
+  btnTogglePrivacy.addEventListener("click", () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const privacyRef = database.ref(`users/${user.uid}/isHistoryPrivate`);
+    privacyRef.once('value', (snap) => {
+      const currentState = snap.exists() ? snap.val() === true : false;
+      const newState = !currentState;
+      privacyRef.set(newState).then(() => {
+        alert(newState ? "Seu histórico agora está OCULTO." : "Seu histórico agora está VISÍVEL.");
+      });
+    });
+  });
+}
+
+function loadContactsList(myUid) {
+  database.ref(`friendships/${myUid}`).on('value', async (snapshot) => {
+    if (!friendsList) return;
+    friendsList.innerHTML = '';
+
+    const friendships = snapshot.val();
+    if (!friendships) {
+      friendsList.innerHTML = '<p class="empty-msg">Nenhum contato adicionado.</p>';
+      return;
+    }
+
     for (const [friendUid, status] of Object.entries(friendships)) {
       if (status === 'accepted') {
-        // Busca os dados do perfil do amigo
-        const userSnap = await db.ref(`users/${friendUid}`).once('value');
+        const userSnap = await database.ref(`users/${friendUid}`).once('value');
         const friendData = userSnap.val();
-
         if (friendData) {
-          renderContactCard(friendData);
+          renderContactCard(friendUid, friendData);
+          listenToFriendLocation(friendUid, friendData.displayName || friendData.phone);
         }
       }
     }
   });
 }
 
-// Renderiza o card do contato com ações para Ver Localização e Histórico
-function renderContactCard(friendData) {
-  const li = document.createElement("li");
-  li.className = "contact-card";
-  li.innerHTML = `
-    <div class="contact-info">
-      <strong>${friendData.displayName || 'Contato sem nome'}</strong>
-      <span>${friendData.phone} ${friendData.email ? ' | ' + friendData.email : ''}</span>
+function renderContactCard(friendUid, friendData) {
+  const name = friendData.displayName || friendData.phone || 'Contato';
+  const div = document.createElement("div");
+  div.className = "friend-item";
+  div.id = `friend-item-${friendUid}`;
+
+  div.innerHTML = `
+    <div class="friend-info">
+      <strong>${name}</strong>
+      <small>${friendData.phone || ''}</small>
+      <small id="time-status-${friendUid}" class="time-status">Aguardando dados GPS...</small>
     </div>
-    <div class="contact-actions">
-      <button onclick="viewLocation('${friendData.uid}')" class="btn-action btn-map">📍 Localização</button>
-      <button onclick="viewHistory('${friendData.uid}')" class="btn-action btn-history">📜 Histórico</button>
-    </div>
+    <button id="btn-route-${friendUid}" class="btn-history-small" onclick="toggleUserRoute('${friendUid}', '${name}', this)">Ver Trajeto (30d)</button>
   `;
-  contactsListElement.appendChild(li);
+  friendsList.appendChild(div);
+}
+
+function listenToFriendLocation(friendUid, friendName) {
+  database.ref(`locations/${friendUid}`).on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
+
+    const { latitude, longitude, timestamp } = data;
+    const latLng = [latitude, longitude];
+
+    if (!otherMarkers[friendUid]) {
+      const marker = L.marker(latLng).addTo(map).bindPopup(`<b>${friendName}</b>`);
+      otherMarkers[friendUid] = { marker, latLng };
+    } else {
+      otherMarkers[friendUid].marker.setLatLng(latLng);
+      otherMarkers[friendUid].latLng = latLng;
+    }
+
+    const timeElem = document.getElementById(`time-status-${friendUid}`);
+    if (timeElem && timestamp) {
+      const lastSeenDate = new Date(timestamp);
+      timeElem.className = "time-status online";
+      timeElem.innerText = `Atualizado às ${lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+  });
 }
 
 // ==========================================================================
-// 3. VISUALIZAR LOCALIZAÇÃO EM TEMPO REAL E HISTÓRICO DO CONTATO
+// 5. ROTA E HISTÓRICO DE 30 DIAS NO MAPA
 // ==========================================================================
-
-// Visualizar Localização Atual no Mapa
-window.viewLocation = function(friendUid) {
-  db.ref(`users/${friendUid}/lastLocation`).once('value', (snapshot) => {
-    const loc = snapshot.val();
-    if (!loc || (loc.latitude === 0 && loc.longitude === 0)) {
-      alert("Este contato ainda não possui coordenadas registradas no GPS.");
-      return;
-    }
-    
-    alert(`📍 Localização Atual do Contato:\nLat: ${loc.latitude}\nLng: ${loc.longitude}\nÚltima atualização: ${new Date(loc.timestamp).toLocaleString('pt-BR')}`);
-    
-    // Centraliza o mapa se a biblioteca (ex: Leaflet) estiver ativa
-    if (typeof map !== 'undefined' && map.setView) {
-      map.setView([loc.latitude, loc.longitude], 15);
-      L.marker([loc.latitude, loc.longitude]).addTo(map)
-        .bindPopup(`<b>Contato</b><br>Atualizado em: ${new Date(loc.timestamp).toLocaleTimeString('pt-BR')}`)
-        .openPopup();
-    }
-  });
-};
-
-// Visualizar Histórico de Deslocamento
-window.viewHistory = function(friendUid) {
-  db.ref(`users/${friendUid}`).once('value', async (userSnap) => {
-    const friendData = userSnap.val();
-    if (friendData && friendData.isHistoryPrivate) {
-      alert("🔒 Este contato configurou o histórico como privado.");
-      return;
-    }
-
-    // Busca o histórico de localizações
-    db.ref(`locations/${friendUid}`).limitToLast(20).once('value', (snapshot) => {
-      const history = snapshot.val();
-      if (!history) {
-        alert("Nenhum histórico de localização encontrado para este contato.");
-        return;
-      }
-
-      let historyText = "📜 Histórico de Localizações (Últimos Registros):\n\n";
-      Object.values(history).forEach((item) => {
-        const time = new Date(item.timestamp).toLocaleString('pt-BR');
-        historyText += `• ${time}: Lat ${item.latitude}, Lng ${item.longitude}\n`;
-      });
-
-      alert(historyText);
-    });
-  });
-};
-
-// Autenticação / Inicialização ao carregar a página
-auth.onAuthStateChanged((user) => {
-  if (user) {
-    loadContactsList();
+window.toggleUserRoute = function(targetUid, title, buttonElem) {
+  if (activePolylineUid === targetUid && currentPolyline) {
+    clearCurrentRoute();
+    resetButtonState(targetUid, buttonElem);
+    return;
   }
-});
+
+  clearCurrentRoute();
+  fetchAndDrawHistory(targetUid, title, buttonElem);
+};
+
+function clearCurrentRoute() {
+  if (currentPolyline) {
+    map.removeLayer(currentPolyline);
+    currentPolyline = null;
+  }
+  
+  if (activePolylineUid) {
+    const prevBtn = document.getElementById(`btn-route-${activePolylineUid}`);
+    if (prevBtn) {
+      prevBtn.innerText = "Ver Trajeto (30d)";
+      prevBtn.style.backgroundColor = "";
+    }
+  }
+
+  if (activePolylineUid === (auth.currentUser ? auth.currentUser.uid : null)) {
+    if (btnMyHistory) btnMyHistory.innerText = "Ver Meu Trajeto (30 dias)";
+  }
+
+  activePolylineUid = null;
+}
+
+function resetButtonState(targetUid, buttonElem) {
+  if (!buttonElem) return;
+
+  if (targetUid === (auth.currentUser ? auth.currentUser.uid : null)) {
+    buttonElem.innerText = "Ver Meu Trajeto (30 dias)";
+  } else {
+    buttonElem.innerText = "Ver Trajeto (30d)";
+  }
+  buttonElem.style.backgroundColor = "";
+}
+
+function fetchAndDrawHistory(targetUid, title, buttonElem) {
+  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+
+  database.ref(`users/${targetUid}/isHistoryPrivate`).once('value', (privacySnap) => {
+    const isPrivate = privacySnap.exists() ? privacySnap.val() === true : false;
+    const isMe = auth.currentUser && auth.currentUser.uid === targetUid;
+
+    if (isPrivate && !isMe) {
+      alert(`O usuário ${title} definiu o histórico de 30 dias como privado.`);
+      return;
+    }
+
+    database.ref(`location_history/${targetUid}`).once('value')
+      .then((snapshot) => {
+        if (!snapshot.exists()) {
+          alert(`Nenhum histórico registrado para ${title}.`);
+          return;
+        }
+
+        const latLngs = [];
+        snapshot.forEach((child) => {
+          const val = child.val();
+          if (val && typeof val.latitude === 'number' && typeof val.longitude === 'number') {
+            const ts = typeof val.timestamp === 'number' ? val.timestamp : Date.now();
+            if (ts >= thirtyDaysAgo) {
+              latLngs.push([val.latitude, val.longitude]);
+            }
+          }
+        });
+
+        if (latLngs.length === 0) {
+          alert(`Nenhum trajeto encontrado nos últimos 30 dias para ${title}.`);
+          return;
+        }
+
+        if (latLngs.length === 1) {
+          map.setView(latLngs[0], 16);
+          L.popup()
+            .setLatLng(latLngs[0])
+            .setContent(`<b>Único ponto registrado de ${title}</b>`)
+            .openOn(map);
+        } else {
+          currentPolyline = L.polyline(latLngs, { 
+            color: '#0052d4', 
+            weight: 5, 
+            opacity: 0.8 
+          }).addTo(map);
+
+          map.fitBounds(currentPolyline.getBounds(), { padding: [40, 40] });
+        }
+
+        activePolylineUid = targetUid;
+
+        if (buttonElem) {
+          buttonElem.innerText = "❌ Ocultar Trajeto";
+          buttonElem.style.backgroundColor = "#ef4444";
+        }
+
+        closeDrawer();
+      })
+      .catch((error) => {
+        console.error("Erro ao carregar histórico:", error);
+        alert("Erro ao buscar histórico: " + error.message);
+      });
+  });
+}
