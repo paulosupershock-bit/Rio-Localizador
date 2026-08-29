@@ -20,7 +20,7 @@ let userMarker = null;
 let watchId = null;
 const otherMarkers = {};
 let currentPolyline = null;
-let activePolylineUid = null; // Controla qual UID está com a rota exibida
+let activePolylineUid = null;
 const alertedFriends = new Set();
 
 // Elementos da DOM
@@ -155,11 +155,12 @@ btnRegister.addEventListener("click", () => {
   
   const rawPhone = prompt("Digite seu telefone com DDD (ex: 21999998888 ou +5521999998888):") || "";
   const cleanedPhone = formatPhoneNumber(rawPhone);
+  const userEmail = emailInput.value.toLowerCase().trim();
 
-  auth.createUserWithEmailAndPassword(emailInput.value, passwordInput.value)
+  auth.createUserWithEmailAndPassword(userEmail, passwordInput.value)
     .then((cred) => {
       database.ref(`users/${cred.user.uid}`).set({
-        email: cred.user.email.toLowerCase(),
+        email: userEmail,
         phone: cleanedPhone,
         isHistoryPrivate: false
       });
@@ -175,7 +176,7 @@ if (btnForgotPassword) {
       alert("Digite seu e-mail para recuperar a senha.");
       return;
     }
-    auth.sendPasswordResetEmail(emailInput.value)
+    auth.sendPasswordResetEmail(emailInput.value.trim().toLowerCase())
       .then(() => alert("E-mail de redefinição enviado! Cheque sua caixa de entrada."))
       .catch((error) => alert("Erro: " + error.message));
   });
@@ -193,7 +194,7 @@ if (btnGoogleLogin) {
         userRef.once('value', (snapshot) => {
           const userData = snapshot.val() || {};
           const updates = { 
-            email: result.user.email.toLowerCase(),
+            email: result.user.email.toLowerCase().trim(),
             isHistoryPrivate: false
           };
           
@@ -229,7 +230,7 @@ if (btnUpdatePhone) {
 
     database.ref(`users/${user.uid}`).update({
       phone: cleanedPhone,
-      email: user.email ? user.email.toLowerCase() : ""
+      email: user.email ? user.email.toLowerCase().trim() : ""
     })
     .then(() => alert(`Telefone ${cleanedPhone} salvo com sucesso!`))
     .catch((error) => alert("Erro ao salvar telefone: " + error.message));
@@ -249,7 +250,7 @@ auth.onAuthStateChanged((user) => {
     listenToMyPrivacy(user.uid);
 
     if (user.email) {
-      database.ref(`users/${user.uid}`).update({ email: user.email.toLowerCase() });
+      database.ref(`users/${user.uid}`).update({ email: user.email.toLowerCase().trim() });
     }
   } else {
     if (watchId) navigator.geolocation.clearWatch(watchId);
@@ -273,7 +274,6 @@ function initMap() {
     if (userMarker) map.setView(userMarker.getLatLng(), 16);
   });
 
-  // Alterna o meu próprio trajeto
   btnMyHistory.addEventListener("click", () => {
     if (auth.currentUser) {
       toggleUserRoute(auth.currentUser.uid, "Meu Trajeto", btnMyHistory);
@@ -305,7 +305,7 @@ function startLocationTracking(uid) {
   );
 }
 
-// --- GERENCIAMENTO DE AMIGOS ---
+// --- GERENCIAMENTO E ADIÇÃO DE AMIGOS (MELHORADO E CORRIGIDO) ---
 
 if (friendSearchType) {
   friendSearchType.addEventListener("change", () => {
@@ -328,48 +328,61 @@ if (addFriendForm) {
     e.preventDefault();
 
     const searchType = friendSearchType ? friendSearchType.value : "email";
-    let queryRef;
-
-    if (searchType === "email") {
-      const targetEmail = friendEmailInput.value.trim().toLowerCase();
-      if (!targetEmail) return;
-      queryRef = database.ref('users').orderByChild('email').equalTo(targetEmail);
-    } else {
-      const rawPhone = friendPhoneInput.value;
-      const targetPhone = formatPhoneNumber(rawPhone);
-
-      if (!targetPhone || targetPhone.length < 12) {
-        alert("Digite um número de telefone válido com DDD.");
-        return;
-      }
-      queryRef = database.ref('users').orderByChild('phone').equalTo(targetPhone);
-    }
-
-    queryRef.once('value', (snapshot) => {
+    
+    // Busca ampla na lista inteira de usuários para evitar falhas de indexação do Realtime DB
+    database.ref('users').once('value', (snapshot) => {
       if (!snapshot.exists()) {
-        alert("Usuário não encontrado.");
+        alert("Nenhum usuário cadastrado no sistema.");
         return;
       }
 
-      let friendUid = null;
-      snapshot.forEach(child => { friendUid = child.key; });
+      let foundUid = null;
+      let targetValue = "";
 
-      if (friendUid === auth.currentUser.uid) {
-        alert("Você não pode adicionar a si mesmo.");
+      if (searchType === "email") {
+        targetValue = friendEmailInput.value.trim().toLowerCase();
+        snapshot.forEach((child) => {
+          const u = child.val();
+          if (u && u.email && u.email.toLowerCase().trim() === targetValue) {
+            foundUid = child.key;
+          }
+        });
+      } else {
+        const rawPhone = friendPhoneInput.value;
+        targetValue = formatPhoneNumber(rawPhone);
+        
+        snapshot.forEach((child) => {
+          const u = child.val();
+          if (u && u.phone) {
+            const formattedDbPhone = formatPhoneNumber(u.phone);
+            if (formattedDbPhone === targetValue) {
+              foundUid = child.key;
+            }
+          }
+        });
+      }
+
+      if (!foundUid) {
+        alert(`Usuário não encontrado com o ${searchType === "email" ? "e-mail" : "telefone"}: ${targetValue}.\n\nCertifique-se de que a pessoa já se cadastrou no aplicativo.`);
+        return;
+      }
+
+      if (foundUid === auth.currentUser.uid) {
+        alert("Você não pode adicionar seu próprio usuário.");
         return;
       }
 
       const updates = {};
-      updates[`/friendships/${auth.currentUser.uid}/${friendUid}`] = "pending_sent";
-      updates[`/friendships/${friendUid}/${auth.currentUser.uid}`] = "pending_received";
+      updates[`/friendships/${auth.currentUser.uid}/${foundUid}`] = "pending_sent";
+      updates[`/friendships/${foundUid}/${auth.currentUser.uid}`] = "pending_received";
 
       database.ref().update(updates)
         .then(() => {
-          alert("Solicitação enviada!");
+          alert("Solicitação enviada com sucesso!");
           if (friendEmailInput) friendEmailInput.value = "";
           if (friendPhoneInput) friendPhoneInput.value = "";
         })
-        .catch(err => alert("Erro ao enviar: " + err.message));
+        .catch(err => alert("Erro ao enviar solicitação: " + err.message));
     });
   });
 }
@@ -410,7 +423,7 @@ function renderPendingRequest(friendUid, friendIdentifier) {
   item.className = "pending-request-item";
   item.innerHTML = `
     <span><strong>${friendIdentifier}</strong> quer compartilhar a localização.</span>
-    <div>
+    <div style="margin-top: 5px;">
       <button class="btn-accept" onclick="acceptFriendRequest('${friendUid}')">Aceitar</button>
       <button class="btn-danger" onclick="rejectFriendRequest('${friendUid}')">Recusar</button>
     </div>
@@ -531,17 +544,13 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 // --- FUNÇÃO PARA MANIPULAR E ALTERNAR O DESENHO DA ROTA ---
 window.toggleUserRoute = function(targetUid, title, buttonElem) {
-  // Se a rota desse mesmo usuário já estiver na tela, limpa e reseta
   if (activePolylineUid === targetUid && currentPolyline) {
     clearCurrentRoute();
     resetButtonState(targetUid, buttonElem);
     return;
   }
 
-  // Caso haja outra rota desenhada no mapa, limpa a rota anterior
   clearCurrentRoute();
-
-  // Carrega e desenha a rota de 30 dias
   fetchAndDrawHistory(targetUid, title, buttonElem);
 };
 
@@ -559,7 +568,6 @@ function clearCurrentRoute() {
     }
   }
 
-  // Reseta também o botão 'Ver Meu Trajeto' se for do próprio usuário
   if (activePolylineUid === (auth.currentUser ? auth.currentUser.uid : null)) {
     if (btnMyHistory) btnMyHistory.innerText = "Ver Meu Trajeto (30 dias)";
   }
@@ -627,7 +635,6 @@ function fetchAndDrawHistory(targetUid, title, buttonElem) {
 
       activePolylineUid = targetUid;
 
-      // Alterna o texto do botão ativado para indicar a limpeza
       if (buttonElem) {
         buttonElem.innerText = "❌ Ocultar Trajeto";
         buttonElem.style.backgroundColor = "#ef4444";
