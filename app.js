@@ -1,5 +1,5 @@
 /* ==========================================================================
-   RIO LOCALIZADOR - APP.JS (VERSÃO COMPLETA E ATUALIZADA)
+   RIO LOCALIZADOR - APP.JS (VERSÃO COMPLETA ATUALIZADA)
    ========================================================================== */
 
 const firebaseConfig = {
@@ -28,14 +28,18 @@ let currentPolyline = null;
 let activePolylineUid = null;
 let realTimeListeners = {};
 
-// Controle de KM Rodados
-let trackingKmActive = false;
+// Controle de KM
+let trackingKmActive = true; // Ativo por padrão em metros/quilômetros
 let lastKmPosition = null;
 let accumulatedMeters = 0;
 
-// Alerta de Proximidade Ativo
-let activeProximityTargets = {}; // { uid: { radiusMeters, name } }
+// Alertas de Proximidade Individuais
+let activeProximityTargets = {}; // { friendUid: { radiusMeters, name } }
+let currentTriggeredFriendUid = null;
 let audioAlertCtx = null;
+
+// Roteirização por Contato (Armazena polilinhas e rotas ativas)
+let contactRoutePolylines = {}; // { friendUid: L.polyline }
 
 // Elementos do DOM
 const authScreen = document.getElementById("auth-screen");
@@ -45,7 +49,6 @@ const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const btnRegister = document.getElementById("btn-register");
 const btnLogout = document.getElementById("btn-logout");
-const btnForgotPassword = document.getElementById("btn-forgot-password");
 const btnGoogleLogin = document.getElementById("btn-google-login");
 const btnRecenter = document.getElementById("btn-recenter");
 
@@ -56,7 +59,6 @@ const overlay = document.getElementById("drawer-overlay");
 const friendsList = document.getElementById("friends-list");
 const btnMyHistory = document.getElementById("btn-toggle-history");
 const btnTogglePrivacy = document.getElementById("btn-toggle-privacy");
-
 const adminSection = document.getElementById("admin-section");
 const btnAdminRegisterUser = document.getElementById("btnAdminRegisterUser");
 const friendSearchType = document.getElementById("friend-search-type");
@@ -64,20 +66,13 @@ const friendEmailInput = document.getElementById("friend-email-input");
 const friendPhoneInput = document.getElementById("friend-phone-input");
 const addFriendForm = document.getElementById("add-friend-form");
 
-// Rota Ponto A / B
-const btnCalculateRoute = document.getElementById("btn-calculate-route");
-const routeOriginInput = document.getElementById("route-origin");
-const routeDestinationInput = document.getElementById("route-destination");
-const routeResultsDiv = document.getElementById("route-results");
-let routePolyline = null;
-let destinationMarker = null;
-
-// WhatsApp Modal
 const btnOpenWhatsappModal = document.getElementById("btn-open-whatsapp-modal");
 const whatsappModal = document.getElementById("whatsapp-modal");
 const whatsappCheckboxesDiv = document.getElementById("whatsapp-contacts-checkboxes");
 const btnSendWhatsappSelected = document.getElementById("btn-send-whatsapp-selected");
 let loadedFriendsDataMap = {};
+
+const LETTERS_ARRAY = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
 function formatPhoneNumber(phoneInput) {
   if (!phoneInput) return "";
@@ -124,8 +119,6 @@ if (btnGoogleLogin) {
         }
         userRef.update(updates);
       });
-    }).catch((error) => {
-      if (error.code !== "auth/popup-closed-by-user") alert("Erro no Google Login: " + error.message);
     });
   });
 }
@@ -143,7 +136,7 @@ if (btnRegister) {
           uid: cred.user.uid, email: userEmail, phone: cleanedPhone, displayName: userEmail, isHistoryPrivate: false
         });
         alert("Conta criada com sucesso!");
-      }).catch((error) => alert("Erro ao cadastrar: " + error.message));
+      }).catch((error) => alert("Erro: " + error.message));
   });
 }
 
@@ -155,26 +148,21 @@ if (btnLogout) btnLogout.addEventListener("click", () => auth.signOut());
 if (btnAdminRegisterUser) {
   btnAdminRegisterUser.addEventListener("click", async () => {
     const currentUser = auth.currentUser;
-    if (!currentUser || currentUser.email.toLowerCase().trim() !== ADMIN_EMAIL.toLowerCase().trim()) {
-      alert("Acesso negado."); return;
-    }
+    if (!currentUser || currentUser.email.toLowerCase().trim() !== ADMIN_EMAIL.toLowerCase().trim()) return;
     const rawPhone = prompt("TELEFONE com DDD (ex: 21999998888):");
     if (!rawPhone) return;
     const cleanedPhone = formatPhoneNumber(rawPhone);
-    const optionalEmail = prompt("E-MAIL (Opcional):") || "";
     const displayName = prompt("Nome do Contato:") || cleanedPhone;
 
-    try {
-      const myUid = currentUser.uid;
-      const newFriendUid = database.ref('users').push().key;
-      const updates = {};
-      updates[`/users/${newFriendUid}`] = { uid: newFriendUid, phone: cleanedPhone, email: optionalEmail.trim().toLowerCase(), displayName, isHistoryPrivate: false };
-      updates[`/friendships/${myUid}/${newFriendUid}`] = "accepted";
-      updates[`/friendships/${newFriendUid}/${myUid}`] = "accepted";
-      await database.ref().update(updates);
-      alert(`Contato ${displayName} cadastrado!`);
-      loadContactsList(myUid);
-    } catch (err) { alert("Erro: " + err.message); }
+    const myUid = currentUser.uid;
+    const newFriendUid = database.ref('users').push().key;
+    const updates = {};
+    updates[`/users/${newFriendUid}`] = { uid: newFriendUid, phone: cleanedPhone, displayName, isHistoryPrivate: false };
+    updates[`/friendships/${myUid}/${newFriendUid}`] = "accepted";
+    updates[`/friendships/${newFriendUid}/${myUid}`] = "accepted";
+    await database.ref().update(updates);
+    alert(`Contato ${displayName} cadastrado!`);
+    loadContactsList(myUid);
   });
 }
 
@@ -223,7 +211,7 @@ if (addFriendForm) {
 }
 
 // ==========================================================================
-// 3. MAPA E RASTREAMENTO GPS + CÁLCULO DE DISTÂNCIA EM METROS
+// 3. MAPA, GPS E HISTÓRICO DE KM EM UNIDADES INTERNACIONAIS (m / km)
 // ==========================================================================
 auth.onAuthStateChanged((user) => {
   if (user) {
@@ -251,20 +239,13 @@ function initMap() {
 
   if (btnMyHistory) {
     btnMyHistory.addEventListener("click", () => {
-      if (auth.currentUser) toggleUserRoute(auth.currentUser.uid, "Meu Trajeto", btnMyHistory);
+      if (auth.currentUser) toggleUserRouteHistory(auth.currentUser.uid, "Meu Trajeto", btnMyHistory);
     });
   }
-
-  // Clique no mapa define destino da rota A/B
-  map.on('click', (e) => {
-    routeDestinationInput.value = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
-    if (destinationMarker) map.removeLayer(destinationMarker);
-    destinationMarker = L.marker(e.latlng).addTo(map).bindPopup("Destino selecionado").openPopup();
-  });
 }
 
 function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371e3; // Raio da Terra em metros
+  const R = 6371e3; // Metros
   const φ1 = lat1 * Math.PI/180;
   const φ2 = lat2 * Math.PI/180;
   const Δφ = (lat2-lat1) * Math.PI/180;
@@ -291,11 +272,10 @@ function startLocationTracking(uid) {
       userMarker.setLatLng(latLng);
     }
 
-    // Cálculo Quilometragem Ativa
     if (trackingKmActive) {
       if (lastKmPosition) {
         const dist = calculateDistanceMeters(lastKmPosition[0], lastKmPosition[1], latitude, longitude);
-        if (dist > 3) { // Filtro de ruído mínimo de 3 metros
+        if (dist > 2) {
           accumulatedMeters += dist;
           lastKmPosition = [latitude, longitude];
           saveKmHistoryToDatabase(uid, accumulatedMeters);
@@ -305,7 +285,6 @@ function startLocationTracking(uid) {
       }
     }
 
-    // Verificar Alertas de Proximidade com Amigos
     checkProximityAlerts(latitude, longitude);
 
     const timestamp = Date.now();
@@ -320,21 +299,88 @@ function saveKmHistoryToDatabase(uid, meters) {
   database.ref(`km_history/${uid}/${todayStr}`).set({
     kilometers: parseFloat(kmVal),
     meters: Math.round(meters),
+    formatted: meters >= 1000 ? `${(meters/1000).toFixed(2)} km` : `${Math.round(meters)} m`,
     timestamp: firebase.database.ServerValue.TIMESTAMP
   });
 }
 
 // ==========================================================================
-// 4. ALERTA DE PROXIMIDADE (VISUAL E SONORO)
+// 4. BUSCA DE ENDEREÇOS COM AUTOCOMPLETE E HISTÓRICO NO FIREBASE
+// ==========================================================================
+function setupAddressAutocomplete(inputElement, suggestionContainerId, uid) {
+  const container = document.getElementById(suggestionContainerId);
+  let debounceTimer = null;
+
+  inputElement.addEventListener("input", (e) => {
+    const query = e.target.value.trim();
+    clearTimeout(debounceTimer);
+    container.innerHTML = "";
+
+    if (query.length < 3) {
+      container.classList.add("hidden");
+      return;
+    }
+
+    debounceTimer = setTimeout(async () => {
+      try {
+        // Buscar histórico recente salvo no Firebase primeiro
+        const histSnap = await database.ref(`search_history/${uid}`).limitToLast(5).once('value');
+        let suggestionsHTML = "";
+        
+        histSnap.forEach((child) => {
+          const addr = child.val().address;
+          if (addr.toLowerCase().includes(query.toLowerCase())) {
+            suggestionsHTML += `<div class="autocomplete-item" onclick="selectAddress('${inputElement.id}', '${addr.replace(/'/g, "")}', '${suggestionContainerId}')">🕒 ${addr} (Recente)</div>`;
+          }
+        });
+
+        // Buscar Nominatim API
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=4`);
+        const data = await res.json();
+
+        data.forEach(item => {
+          const displayName = item.display_name.replace(/'/g, "");
+          suggestionsHTML += `<div class="autocomplete-item" onclick="selectAddress('${inputElement.id}', '${displayName}', '${suggestionContainerId}', ${item.lat}, ${item.lon})">📍 ${displayName}</div>`;
+        });
+
+        if (suggestionsHTML) {
+          container.innerHTML = suggestionsHTML;
+          container.classList.remove("hidden");
+        } else {
+          container.classList.add("hidden");
+        }
+      } catch (err) { console.error("Erro autocomplete", err); }
+    }, 350);
+  });
+}
+
+window.selectAddress = function(inputId, addressText, containerId, lat = null, lon = null) {
+  const input = document.getElementById(inputId);
+  input.value = addressText;
+  document.getElementById(containerId).classList.add("hidden");
+
+  // Salvar no histórico recente do Firebase
+  if (auth.currentUser) {
+    database.ref(`search_history/${auth.currentUser.uid}`).push({
+      address: addressText,
+      lat,
+      lon,
+      timestamp: firebase.database.ServerValue.TIMESTAMP
+    });
+  }
+};
+
+// ==========================================================================
+// 5. ALERTAS DE PROXIMIDADE INDIVIDUAIS E CHECKS
 // ==========================================================================
 function setupProximityAlert(friendUid, friendName) {
-  const inputMeters = prompt(`Defina a distância em metros para receber alerta de proximidade de ${friendName}:`, "500");
+  const inputMeters = prompt(`Defina a distância em metros para o alerta de proximidade de ${friendName}:`, "500");
   if (!inputMeters) return;
   const meters = parseFloat(inputMeters);
   if (isNaN(meters) || meters <= 0) { alert("Valor inválido."); return; }
 
-  activeProximityTargets[friendUid] = { radiusMeters: meters, name: friendName };
-  alert(`✅ Alerta ativado! Você será avisado quando ${friendName} estiver a menos de ${meters} metros.`);
+  activeProximityTargets[friendUid] = { radiusMeters: meters, name: friendName, triggered: false };
+  alert(`✅ Alerta configurado para ${friendName} (${meters} metros).`);
 }
 
 function checkProximityAlerts(myLat, myLon) {
@@ -343,7 +389,9 @@ function checkProximityAlerts(myLat, myLon) {
     if (otherMarkers[fUid] && otherMarkers[fUid].latLng) {
       const fPos = otherMarkers[fUid].latLng;
       const dist = calculateDistanceMeters(myLat, myLon, fPos[0], fPos[1]);
-      if (dist <= info.radiusMeters) {
+      if (dist <= info.radiusMeters && !info.triggered) {
+        info.triggered = true;
+        currentTriggeredFriendUid = fUid;
         triggerProximitySoundAndVisual(info.name, Math.round(dist));
       }
     }
@@ -353,7 +401,7 @@ function checkProximityAlerts(myLat, myLon) {
 function triggerProximitySoundAndVisual(friendName, distanceMeters) {
   const modal = document.getElementById("proximity-modal");
   const desc = document.getElementById("proximity-desc");
-  if (modal && modal.classList.contains("hidden")) {
+  if (modal) {
     desc.innerText = `${friendName} está a apenas ${distanceMeters} metros de você!`;
     modal.classList.remove("hidden");
     playAlarmSound();
@@ -366,22 +414,43 @@ function playAlarmSound() {
     const osc = audioAlertCtx.createOscillator();
     const gain = audioAlertCtx.createGain();
     osc.type = "sine";
-    osc.frequency.setValueAtTime(880, audioAlertCtx.currentTime); // Tom alto
-    gain.gain.setValueAtTime(0.5, audioAlertCtx.currentTime);
+    osc.frequency.setValueAtTime(880, audioAlertCtx.currentTime);
+    gain.gain.setValueAtTime(0.4, audioAlertCtx.currentTime);
     osc.connect(gain);
     gain.connect(audioAlertCtx.destination);
     osc.start();
-    osc.stop(audioAlertCtx.currentTime + 0.6);
-  } catch (e) { console.log("Áudio bloqueado pelo navegador", e); }
+    osc.stop(audioAlertCtx.currentTime + 0.5);
+  } catch (e) { console.log(e); }
 }
 
-window.dismissProximityAlert = function() {
+window.dismissProximityAlertOnly = function() {
   const modal = document.getElementById("proximity-modal");
   if (modal) modal.classList.add("hidden");
+  currentTriggeredFriendUid = null;
+};
+
+window.executeProximityCheckAndDismiss = function() {
+  const modal = document.getElementById("proximity-modal");
+  if (modal) modal.classList.add("hidden");
+
+  if (currentTriggeredFriendUid && auth.currentUser) {
+    const checkTime = new Date().toLocaleString();
+    database.ref(`proximity_checks/${auth.currentUser.uid}/${currentTriggeredFriendUid}`).push({
+      timestamp: checkTime,
+      rawTime: firebase.database.ServerValue.TIMESTAMP
+    });
+    alert(`✅ Check de proximidade registrado com sucesso às ${checkTime}!`);
+    
+    // Reseta o gatilho para permitir novo alerta se necessário futuramente
+    if (activeProximityTargets[currentTriggeredFriendUid]) {
+      activeProximityTargets[currentTriggeredFriendUid].triggered = false;
+    }
+  }
+  currentTriggeredFriendUid = null;
 };
 
 // ==========================================================================
-// 5. LISTAGEM DE CONTATOS & OPÇÕES (Trajeto 30d, Realtime, KM, Alerta)
+// 6. LISTAGEM DE CONTATOS & ROTEIRIZAÇÃO ISOLADA (A até J - Até 10 Pontos)
 // ==========================================================================
 function loadContactsList(myUid) {
   database.ref(`friendships/${myUid}`).on('value', async (snapshot) => {
@@ -392,7 +461,7 @@ function loadContactsList(myUid) {
 
     const friendships = snapshot.val();
     if (!friendships) {
-      friendsList.innerHTML = '<p class="empty-msg" style="font-size: 13px; color: #94a3b8;">Nenhum contato adicionado.</p>';
+      friendsList.innerHTML = '<p style="font-size: 13px; color: #94a3b8;">Nenhum contato adicionado.</p>';
       return;
     }
 
@@ -402,7 +471,7 @@ function loadContactsList(myUid) {
         const friendData = userSnap.val();
         if (friendData) {
           loadedFriendsDataMap[friendUid] = friendData;
-          renderContactCard(friendUid, friendData);
+          renderContactCard(friendUid, friendData, myUid);
           listenToFriendLocation(friendUid, friendData.displayName || friendData.phone);
           renderWhatsappCheckbox(friendUid, friendData);
         }
@@ -411,7 +480,7 @@ function loadContactsList(myUid) {
   });
 }
 
-function renderContactCard(friendUid, friendData) {
+function renderContactCard(friendUid, friendData, myUid) {
   const name = friendData.displayName || friendData.phone || 'Contato';
   const div = document.createElement("div");
   div.className = "friend-item";
@@ -424,15 +493,174 @@ function renderContactCard(friendUid, friendData) {
       <small id="time-status-${friendUid}" class="time-status">Aguardando GPS...</small>
     </div>
     <div class="friend-actions">
-      <button id="btn-route-${friendUid}" class="btn-history-small" onclick="toggleUserRoute('${friendUid}', '${name}', this)">30 Dias</button>
-      <button id="btn-realtime-${friendUid}" class="btn-history-small realtime" onclick="toggleRealtimeTracking('${friendUid}', '${name}', this)">Tempo Real</button>
-      <button class="btn-history-small km" onclick="viewKmHistory('${friendUid}', '${name}')">Ver KM</button>
-      <button class="btn-history-small alert" onclick="setupProximityAlert('${friendUid}', '${name}')">Alerta M</button>
+      <button class="btn-action-small" onclick="toggleUserRouteHistory('${friendUid}', '${name}', this)">30 Dias</button>
+      <button class="btn-action-small realtime" onclick="toggleRealtimeTracking('${friendUid}', '${name}', this)">Tempo Real</button>
+      <button class="btn-action-small km" onclick="viewKmHistory('${friendUid}', '${name}')">Ver KM</button>
+      <button class="btn-action-small alert" onclick="setupProximityAlert('${friendUid}', '${name}')">Alerta M</button>
+      <button class="btn-action-small route" onclick="toggleContactRoutePanel('${friendUid}')">Rotas A-J</button>
+    </div>
+    <div id="route-panel-${friendUid}" class="contact-route-container hidden">
+      <p style="font-weight:bold; margin-bottom:6px; color:#0f172a;">Planejador de Trajeto (A ao J)</p>
+      <div id="waypoints-list-${friendUid}">
+        <div class="waypoint-row" id="wp-row-${friendUid}-0">
+          <input type="text" id="wp-${friendUid}-0" placeholder="Ponto A (Origem ou Meu Local)" autocomplete="off" />
+          <div id="sugg-${friendUid}-0" class="autocomplete-suggestions hidden"></div>
+          <button class="btn-check-point" onclick="executeWaypointCheck('${friendUid}', 0, 'A')">Check A</button>
+        </div>
+        <div class="waypoint-row" id="wp-row-${friendUid}-1">
+          <input type="text" id="wp-${friendUid}-1" placeholder="Ponto B (Destino)" autocomplete="off" />
+          <div id="sugg-${friendUid}-1" class="autocomplete-suggestions hidden"></div>
+          <button class="btn-check-point" onclick="executeWaypointCheck('${friendUid}', 1, 'B')">Check B</button>
+        </div>
+      </div>
+      <div style="display:flex; gap:4px; margin-top:6px;">
+        <button class="btn-primary" style="padding:6px; font-size:11px;" onclick="addWaypointRow('${friendUid}')">+ Ponto</button>
+        <button class="btn-primary" style="padding:6px; font-size:11px; background:#16a34a;" onclick="calculateMultiPointRoute('${friendUid}')">Calcular Rota</button>
+      </div>
+      <div id="route-info-${friendUid}" style="font-size:11px; color:#334155; margin-top:6px; background:#f1f5f9; padding:6px; border-radius:4px;" class="hidden"></div>
+      <button class="btn-primary" style="padding:4px; font-size:10px; background:#475569; margin-top:4px;" onclick="viewWaypointChecksHistory('${friendUid}', '${name}')">Ver Histórico de Checks</button>
     </div>
   `;
   friendsList.appendChild(div);
+
+  // Ativar autocomplete nos campos iniciais A e B
+  setTimeout(() => {
+    const inputA = document.getElementById(`wp-${friendUid}-0`);
+    const inputB = document.getElementById(`wp-${friendUid}-1`);
+    if (inputA) setupAddressAutocomplete(inputA, `sugg-${friendUid}-0`, myUid);
+    if (inputB) setupAddressAutocomplete(inputB, `sugg-${friendUid}-1`, myUid);
+  }, 100);
 }
 
+window.toggleContactRoutePanel = function(friendUid) {
+  const panel = document.getElementById(`route-panel-${friendUid}`);
+  if (panel) panel.classList.toggle("hidden");
+};
+
+window.addWaypointRow = function(friendUid) {
+  const container = document.getElementById(`waypoints-list-${friendUid}`);
+  const currentRows = container.getElementsByClassName("waypoint-row").length;
+  if (currentRows >= 10) {
+    alert("O limite máximo é de 10 trajetos (A até J).");
+    return;
+  }
+  const letter = LETTERS_ARRAY[currentRows];
+  const rowId = currentRows;
+
+  const newDiv = document.createElement("div");
+  newDiv.className = "waypoint-row";
+  newDiv.id = `wp-row-${friendUid}-${rowId}`;
+  newDiv.innerHTML = `
+    <input type="text" id="wp-${friendUid}-${rowId}" placeholder="Ponto ${letter}" autocomplete="off" />
+    <div id="sugg-${friendUid}-${rowId}" class="autocomplete-suggestions hidden"></div>
+    <button class="btn-check-point" onclick="executeWaypointCheck('${friendUid}', ${rowId}, '${letter}')">Check ${letter}</button>
+  `;
+  container.appendChild(newDiv);
+  setupAddressAutocomplete(document.getElementById(`wp-${friendUid}-${rowId}`), `sugg-${friendUid}-${rowId}`, auth.currentUser.uid);
+};
+
+// Cálculo de rota multi-pontos com OSRM respeitando A até J
+window.calculateMultiPointRoute = async function(friendUid) {
+  const container = document.getElementById(`waypoints-list-${friendUid}`);
+  const inputs = container.getElementsByTagName("input");
+  let coordsList = [];
+
+  for (let i = 0; i < inputs.length; i++) {
+    const val = inputs[i].value.trim();
+    if (!val) continue;
+    let coords = null;
+    if (val.toLowerCase() === "meu local" || val === "") {
+      if (!userMarker) { alert("Sua localização GPS ainda não foi carregada."); return; }
+      coords = userMarker.getLatLng();
+    } else {
+      coords = await geocodeAddress(val);
+    }
+    if (coords) coordsList.push([coords.lng, coords.lat]);
+  }
+
+  if (coordsList.length < 2) {
+    alert("Preencha pelo menos 2 pontos válidos para calcular o trajeto.");
+    return;
+  }
+
+  const coordinatesStr = coordsList.map(c => `${c[0]},${c[1]}`).join(';');
+  const url = `https://router.project-osrm.org/route/v1/driving/${coordinatesStr}?overview=full&geometries=geojson`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.routes && data.routes.length > 0) {
+      const route = data.routes[0];
+      const routeCoords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+
+      if (contactRoutePolylines[friendUid]) {
+        map.removeLayer(contactRoutePolylines[friendUid]);
+      }
+      contactRoutePolylines[friendUid] = L.polyline(routeCoords, { color: '#2563eb', weight: 5 }).addTo(map);
+      map.fitBounds(contactRoutePolylines[friendUid].getBounds(), { padding: [40, 40] });
+
+      const distanceKm = (route.distance / 1000).toFixed(2);
+      const durationMin = Math.round(route.duration / 60);
+
+      const infoDiv = document.getElementById(`route-info-${friendUid}`);
+      infoDiv.classList.remove("hidden");
+      infoDiv.innerHTML = `🚗 <b>Distância Total:</b> ${distanceKm} km<br>⏱️ <b>Tempo Estimado:</b> ~${durationMin} min`;
+    } else {
+      alert("Não foi possível traçar a rota otimizada.");
+    }
+  } catch (err) { alert("Erro ao consultar serviço de rotas."); }
+};
+
+async function geocodeAddress(addressStr) {
+  if (addressStr.includes(',')) {
+    const parts = addressStr.split(',');
+    const lat = parseFloat(parts[0]); const lon = parseFloat(parts[1]);
+    if (!isNaN(lat) && !isNaN(lon)) return L.latLng(lat, lon);
+  }
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressStr)}&limit=1`);
+    const data = await res.json();
+    if (data && data.length > 0) return L.latLng(parseFloat(data[0].lat), parseFloat(data[0].lon));
+  } catch (e) {}
+  return null;
+}
+
+// Check de chegada em pontos específicos (A, B, C...)
+window.executeWaypointCheck = function(friendUid, rowId, letter) {
+  const input = document.getElementById(`wp-${friendUid}-${rowId}`);
+  if (!input || !input.value.trim()) {
+    alert(`O ponto ${letter} está vazio.`);
+    return;
+  }
+  const address = input.value.trim();
+  const checkTime = new Date().toLocaleString();
+  const myUid = auth.currentUser.uid;
+
+  database.ref(`waypoint_checks/${myUid}/${friendUid}/${letter}`).set({
+    address,
+    timestamp: checkTime,
+    rawTime: firebase.database.ServerValue.TIMESTAMP
+  }).then(() => {
+    alert(`✅ Check do Ponto ${letter} registrado com sucesso às ${checkTime}!`);
+  });
+};
+
+window.viewWaypointChecksHistory = function(friendUid, friendName) {
+  const myUid = auth.currentUser.uid;
+  database.ref(`waypoint_checks/${myUid}/${friendUid}`).once('value').then((snapshot) => {
+    if (!snapshot.exists()) {
+      alert(`Nenhum check de ponto registrado para ${friendName}.`);
+      return;
+    }
+    let msg = `📋 Histórico de Checks - ${friendName}:\n\n`;
+    snapshot.forEach((child) => {
+      msg += `📍 Ponto ${child.key}: ${child.val().address}\n🕒 Horário: ${child.val().timestamp}\n\n`;
+    });
+    alert(msg);
+  });
+};
+
+// Demais funções auxiliares (Tempo Real, Histórico 30d, KM)
 function listenToFriendLocation(friendUid, friendName) {
   database.ref(`locations/${friendUid}`).on('value', (snapshot) => {
     const data = snapshot.val();
@@ -450,221 +678,92 @@ function listenToFriendLocation(friendUid, friendName) {
 
     const timeElem = document.getElementById(`time-status-${friendUid}`);
     if (timeElem && timestamp) {
-      const lastSeenDate = new Date(timestamp);
-      timeElem.className = "time-status online";
-      timeElem.innerText = `Atualizado às ${lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      timeElem.innerText = `Atualizado às ${new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     }
   });
 }
 
-// Tempo Real (Centralizar automático no amigo)
 window.toggleRealtimeTracking = function(friendUid, friendName, btnElem) {
   if (realTimeListeners[friendUid]) {
     database.ref(`locations/${friendUid}`).off('value', realTimeListeners[friendUid]);
     delete realTimeListeners[friendUid];
     btnElem.innerText = "Tempo Real";
     btnElem.style.backgroundColor = "#059669";
-    alert(`Acompanhamento em tempo real de ${friendName} desativado.`);
     return;
   }
-
   realTimeListeners[friendUid] = database.ref(`locations/${friendUid}`).on('value', (snapshot) => {
     const data = snapshot.val();
-    if (data && data.latitude && data.longitude) {
-      map.setView([data.latitude, data.longitude], 17);
-    }
+    if (data && data.latitude && data.longitude) map.setView([data.latitude, data.longitude], 17);
   });
-
-  btnElem.innerText = "❌ Parar Tempo Real";
+  btnElem.innerText = "❌ Parar";
   btnElem.style.backgroundColor = "#ef4444";
-  alert(`Acompanhamento em tempo real de ${friendName} ativado! O mapa seguirá a posição dele.`);
   closeDrawer();
 };
 
-// Histórico de Quilometragem
 window.viewKmHistory = function(friendUid, friendName) {
   database.ref(`km_history/${friendUid}`).once('value').then((snapshot) => {
-    if (!snapshot.exists()) {
-      alert(`Nenhum registro de quilometragem para ${friendName}.`);
-      return;
-    }
-    let msg = `📊 Quilometragem de ${friendName} por data:\n\n`;
+    if (!snapshot.exists()) { alert(`Nenhum registro de quilometragem para ${friendName}.`); return; }
+    let msg = `📊 Quilometragem de ${friendName}:\n\n`;
     snapshot.forEach((child) => {
-      msg += `📅 ${child.key}: ${child.val().kilometers} km (${child.val().meters} metros)\n`;
+      msg += `📅 ${child.key}: ${child.val().formatted || (child.val().kilometers + ' km')}\n`;
     });
     alert(msg);
   });
 };
 
-// ==========================================================================
-// 6. ROTA PONTO A / B COM OSRM (TEMPO REAL E ESTIMATIVA)
-// ==========================================================================
-if (btnCalculateRoute) {
-  btnCalculateRoute.addEventListener("click", async () => {
-    const originVal = routeOriginInput.value.trim();
-    const destVal = routeDestinationInput.value.trim();
-
-    if (!destVal) { alert("Informe o destino ou clique no mapa."); return; }
-
-    let originCoords = null;
-    if (!originVal || originVal.toLowerCase() === "meu local" || originVal === "") {
-      if (!userMarker) { alert("Sua localização atual ainda não foi obtida pelo GPS."); return; }
-      originCoords = userMarker.getLatLng();
-    } else {
-      originCoords = await geocodeAddress(originVal);
-    }
-
-    let destCoords = await geocodeAddress(destVal);
-    if (!originCoords || !destCoords) { alert("Não foi possível localizar os endereços informados."); return; }
-
-    fetchRouteFromOSRM(originCoords, destCoords);
-  });
-}
-
-async function geocodeAddress(addressStr) {
-  // Se forem coordenadas diretas separadas por vírgula
-  if (addressStr.includes(',')) {
-    const parts = addressStr.split(',');
-    const lat = parseFloat(parts[0]);
-    const lon = parseFloat(parts[1]);
-    if (!isNaN(lat) && !isNaN(lon)) return L.latLng(lat, lon);
+window.toggleUserRouteHistory = function(targetUid, title, buttonElem) {
+  if (activePolylineUid === targetUid && currentPolyline) {
+    if (currentPolyline) map.removeLayer(currentPolyline);
+    currentPolyline = null;
+    activePolylineUid = null;
+    if (buttonElem) buttonElem.innerText = "30 Dias";
+    return;
   }
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressStr)}`);
-    const data = await res.json();
-    if (data && data.length > 0) {
-      return L.latLng(parseFloat(data[0].lat), parseFloat(data[0].lon));
-    }
-  } catch (e) { console.error("Erro geocoding", e); }
-  return null;
-}
-
-function fetchRouteFromOSRM(origin, dest) {
-  const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson`;
+  if (currentPolyline) map.removeLayer(currentPolyline);
   
-  fetch(url)
-    .then(res => res.json())
-    .then(data => {
-      if (data.routes && data.routes.length > 0) {
-        const route = data.routes[0];
-        const coords = route.geometry.coordinates.map(c => [c[1], c[0]]); // [lat, lon]
-        
-        if (routePolyline) map.removeLayer(routePolyline);
-        routePolyline = L.polyline(coords, { color: '#2563eb', weight: 6 }).addTo(map);
-        map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
-
-        const distanceKm = (route.distance / 1000).toFixed(1);
-        const durationMin = Math.round(route.duration / 60);
-
-        routeResultsDiv.classList.remove("hidden");
-        routeResultsDiv.innerHTML = `🚗 <b>Distância:</b> ${distanceKm} km<br>⏱️ <b>Tempo Estimado:</b> ~${durationMin} minutos`;
-      } else {
-        alert("Não foi possível traçar a rota.");
-      }
-    })
-    .catch(err => alert("Erro ao calcular rota: " + err.message));
-}
-
-// ==========================================================================
-// 7. COMPARTILHAMENTO WHATSAPP PARA MÚLTIPLOS CONTATOS
-// ==========================================================================
-if (btnOpenWhatsappModal) {
-  btnOpenWhatsappModal.addEventListener("click", () => {
-    if (whatsappModal) whatsappModal.classList.remove("hidden");
+  database.ref(`location_history/${targetUid}`).once('value').then((snapshot) => {
+    if (!snapshot.exists()) { alert(`Nenhum histórico disponível.`); return; }
+    const latLngs = [];
+    snapshot.forEach((child) => {
+      const val = child.val();
+      if (val && typeof val.latitude === 'number') latLngs.push([val.latitude, val.longitude]);
+    });
+    currentPolyline = L.polyline(latLngs, { color: '#0052d4', weight: 5 }).addTo(map);
+    map.fitBounds(currentPolyline.getBounds(), { padding: [40, 40] });
+    activePolylineUid = targetUid;
+    if (buttonElem) buttonElem.innerText = "❌ Ocultar";
+    closeDrawer();
   });
-}
+};
 
-function closeWhatsappModal() {
-  if (whatsappModal) whatsappModal.classList.add("hidden");
+// WhatsApp Modal e Compartilhamento
+if (btnOpenWhatsappModal) {
+  btnOpenWhatsappModal.addEventListener("click", () => whatsappModal.classList.remove("hidden"));
 }
+function closeWhatsappModal() { whatsappModal.classList.add("hidden"); }
 
 function renderWhatsappCheckbox(uid, data) {
   if (!data.phone) return;
   const div = document.createElement("div");
   div.className = "whatsapp-contact-item";
-  div.innerHTML = `
-    <input type="checkbox" value="${data.phone}" id="wa-chk-${uid}" />
-    <label for="wa-chk-${uid}"><b>${data.displayName || data.phone}</b> (${data.phone})</label>
-  `;
+  div.innerHTML = `<input type="checkbox" value="${data.phone}" id="wa-chk-${uid}" /> <label for="wa-chk-${uid}">${data.displayName || data.phone}</label>`;
   whatsappCheckboxesDiv.appendChild(div);
 }
 
 if (btnSendWhatsappSelected) {
   btnSendWhatsappSelected.addEventListener("click", () => {
-    const checkedBoxes = whatsappCheckboxesDiv.querySelectorAll("input[type='checkbox']:checked");
-    if (checkedBoxes.length === 0) { alert("Selecione pelo menos um contato."); return; }
-
-    const siteLink = window.location.href;
-    const message = encodeURIComponent(`Olá! Acesse meu localizador em tempo real pelo link: ${siteLink}`);
-
-    checkedBoxes.forEach(chk => {
-      const phone = chk.value.replace(/\D/g, "");
-      const whatsappUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${message}`;
-      window.open(whatsappUrl, '_blank');
+    const checked = whatsappCheckboxesDiv.querySelectorAll("input[type='checkbox']:checked");
+    if (checked.length === 0) { alert("Selecione pelo menos um contato."); return; }
+    const message = encodeURIComponent(`Olá! Acompanhe meu localizador pelo link: ${window.location.href}`);
+    checked.forEach(chk => {
+      window.open(`https://api.whatsapp.com/send?phone=${chk.value.replace(/\D/g, "")}&text=${message}`, '_blank');
     });
-
     closeWhatsappModal();
   });
 }
 
-// ==========================================================================
-// 8. HISTÓRICO 30 DIAS
-// ==========================================================================
-window.toggleUserRoute = function(targetUid, title, buttonElem) {
-  if (activePolylineUid === targetUid && currentPolyline) {
-    clearCurrentRoute();
-    resetButtonState(targetUid, buttonElem);
-    return;
-  }
-  clearCurrentRoute();
-  fetchAndDrawHistory(targetUid, title, buttonElem);
-};
-
-function clearCurrentRoute() {
-  if (currentPolyline) { map.removeLayer(currentPolyline); currentPolyline = null; }
-  if (activePolylineUid) {
-    const prevBtn = document.getElementById(`btn-route-${activePolylineUid}`);
-    if (prevBtn) { prevBtn.innerText = "30 Dias"; prevBtn.style.backgroundColor = ""; }
-  }
-  activePolylineUid = null;
-}
-
-function resetButtonState(targetUid, buttonElem) {
-  if (!buttonElem) return;
-  buttonElem.innerText = "30 Dias";
-  buttonElem.style.backgroundColor = "";
-}
-
-function fetchAndDrawHistory(targetUid, title, buttonElem) {
-  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-  database.ref(`users/${targetUid}/isHistoryPrivate`).once('value', (privacySnap) => {
-    const isPrivate = privacySnap.exists() ? privacySnap.val() === true : false;
-    const isMe = auth.currentUser && auth.currentUser.uid === targetUid;
-
-    if (isPrivate && !isMe) { alert(`O histórico de ${title} é privado.`); return; }
-
-    database.ref(`location_history/${targetUid}`).once('value').then((snapshot) => {
-      if (!snapshot.exists()) { alert(`Nenhum histórico para ${title}.`); return; }
-      const latLngs = [];
-      snapshot.forEach((child) => {
-        const val = child.val();
-        if (val && typeof val.latitude === 'number' && typeof val.longitude === 'number') {
-          if ((val.timestamp || Date.now()) >= thirtyDaysAgo) latLngs.push([val.latitude, val.longitude]);
-        }
-      });
-      if (latLngs.length === 0) { alert("Nenhum trajeto recente."); return; }
-
-      currentPolyline = L.polyline(latLngs, { color: '#0052d4', weight: 5, opacity: 0.8 }).addTo(map);
-      map.fitBounds(currentPolyline.getBounds(), { padding: [40, 40] });
-      activePolylineUid = targetUid;
-      if (buttonElem) { buttonElem.innerText = "❌ Ocultar"; buttonElem.style.backgroundColor = "#ef4444"; }
-      closeDrawer();
-    });
-  });
-}
-
 function checkAdminPermissions(user) {
-  const isUserAdmin = user && user.email && user.email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
-  if (adminSection) adminSection.style.display = isUserAdmin ? "block" : "none";
-  if (btnTogglePrivacy) btnTogglePrivacy.style.display = isUserAdmin ? "block" : "none";
+  const isAdmin = user && user.email && user.email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
+  if (adminSection) adminSection.style.display = isAdmin ? "block" : "none";
+  if (btnTogglePrivacy) btnTogglePrivacy.style.display = isAdmin ? "block" : "none";
 }
