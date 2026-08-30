@@ -24,7 +24,7 @@
     .hidden { display: none !important; }
 
     /* ==========================================================================
-       1. TELA DE LOGIN & AUTENTICAÇÃO ESTRUTURADA E MODERNA
+       1. TELA DE LOGIN & AUTENTICAÇÃO
        ========================================================================== */
     #auth-screen {
       display: flex;
@@ -100,17 +100,14 @@
     }
     .btn-google:hover { background-color: #dc2626 !important; }
 
-    .btn-secondary {
-      background-color: #475569 !important;
-    }
+    .btn-secondary { background-color: #475569 !important; }
     .btn-secondary:hover { background-color: #334155 !important; }
 
-    .btn-privacy {
-      background-color: #d97706 !important;
-      color: white;
-      margin-top: 8px;
-    }
+    .btn-privacy { background-color: #d97706 !important; color: white; margin-top: 8px; }
     .btn-privacy:hover { background-color: #b45309 !important; }
+
+    .btn-whatsapp { background-color: #25d366 !important; color: white; margin-top: 8px; }
+    .btn-whatsapp:hover { background-color: #128c7e !important; }
 
     .forgot-link {
       display: inline-block;
@@ -123,15 +120,12 @@
     .forgot-link:hover { text-decoration: underline; }
 
     /* ==========================================================================
-       2. TELA DO MAPA & BARRA DE TOPO (COM RECORTE DE Z-INDEX DO LEAFLET)
+       2. TELA DO MAPA & BARRA DE TOPO
        ========================================================================== */
     #map-screen { width: 100%; height: 100vh; position: relative; }
     #map { width: 100%; height: 100%; z-index: 1; }
 
-    /* AJUSTE DO BOTÃO + / - DO MAPA PARA NÃO SOBREPOR A BARRA */
-    .leaflet-top {
-      top: 70px !important;
-    }
+    .leaflet-top { top: 70px !important; }
 
     .header-bar {
       position: absolute;
@@ -143,7 +137,7 @@
       align-items: center;
       justify-content: space-between;
       padding: 0 16px;
-      z-index: 2000; /* Z-Index maior que os botões do mapa */
+      z-index: 2000;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
     }
 
@@ -166,10 +160,10 @@
     .drawer {
       position: absolute;
       top: 0; left: -340px;
-      width: 320px;
+      width: 340px;
       height: 100%;
       background: #ffffff;
-      z-index: 2002; /* Fica por cima da header-bar e do mapa */
+      z-index: 2002;
       box-shadow: 4px 0 25px rgba(0, 0, 0, 0.25);
       transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       display: flex;
@@ -233,17 +227,44 @@
     .time-status { color: #94a3b8; font-size: 11px; margin-top: 4px; }
     .time-status.online { color: #16a34a; font-weight: 600; }
 
-    .btn-history-small {
+    .friend-actions {
+      display: flex;
+      gap: 6px;
       margin-top: 8px;
-      padding: 6px 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn-history-small {
+      flex: 1;
+      padding: 6px 8px;
       background-color: #2563eb;
       color: white;
       border: none;
       border-radius: 6px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 500;
       cursor: pointer;
+      text-align: center;
     }
+    .btn-history-small.realtime { background-color: #059669; }
+    .btn-history-small.km { background-color: #7c3aed; }
+    .btn-history-small.alert { background-color: #d97706; }
+
+    /* PAINEL FLUTUANTE DE ROTA (PONTO A AO B) */
+    .route-panel {
+      position: absolute;
+      bottom: 25px;
+      left: 20px;
+      z-index: 1000;
+      background: white;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      width: 320px;
+    }
+    .route-panel h4 { font-size: 14px; margin-bottom: 8px; color: #0f172a; }
+    .route-panel input { width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
+    .route-info { font-size: 12px; color: #334155; margin-top: 8px; background: #f1f5f9; padding: 8px; border-radius: 6px; }
 
     /* BOTÃO RECENTRALIZAR GPS */
     .btn-recenter {
@@ -263,9 +284,54 @@
       align-items: center;
       justify-content: center;
     }
+
+    /* MODAL DE ALERTA DE PROXIMIDADE (VISUAL E SONORO) */
+    #proximity-modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(239, 68, 68, 0.85);
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      text-align: center;
+      padding: 20px;
+      animation: pulse-alert 1s infinite alternate;
+    }
+    @keyframes pulse-alert {
+      0% { background: rgba(239, 68, 68, 0.8); }
+      100% { background: rgba(185, 28, 28, 0.95); }
+    }
+    #proximity-modal h2 { font-size: 28px; margin-bottom: 12px; }
+    #proximity-modal p { font-size: 16px; margin-bottom: 24px; }
+    #proximity-modal button { background: white; color: #dc2626; padding: 12px 24px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; }
+
+    /* MODAL WHATSAPP */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.6);
+      z-index: 3000;
+      display: flex; justify-content: center; align-items: center;
+    }
+    .modal-card {
+      background: white; width: 90%; max-width: 360px; padding: 24px; border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    .modal-card h3 { font-size: 16px; margin-bottom: 12px; color: #0f172a; }
+    .whatsapp-contact-list { max-height: 180px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; margin-bottom: 12px; }
+    .whatsapp-contact-item { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 6px; }
   </style>
 </head>
 <body>
+
+  <!-- MODAL DE ALERTA DE PROXIMIDADE (OCULTO POR PADRÃO) -->
+  <div id="proximity-modal" class="hidden">
+    <h2 id="proximity-title">⚠️ ALERTA DE PROXIMIDADE!</h2>
+    <p id="proximity-desc">O contato está muito próximo de você.</p>
+    <button onclick="dismissProximityAlert()">Dispensar Alerta</button>
+  </div>
 
   <!-- ==========================================================================
        1. TELA DE AUTENTICAÇÃO
@@ -280,12 +346,8 @@
         <button type="submit">Entrar</button>
       </form>
 
-      <button id="btn-google-login" class="btn-primary btn-google">
-        Entrar com Google
-      </button>
-
+      <button id="btn-google-login" class="btn-primary btn-google">Entrar com Google</button>
       <button id="btn-register" class="btn-primary btn-secondary">Criar Minha Conta</button>
-      
       <a href="#" id="btn-forgot-password" class="forgot-link">Esqueceu a senha?</a>
     </div>
   </div>
@@ -295,14 +357,12 @@
        ========================================================================== -->
   <div id="map-screen" class="hidden">
 
-    <!-- BARRA SUPERIOR SOBREPOSTA SEM INTERFERÊNCIA NOS BOTÕES DO MAPA -->
     <div class="header-bar">
       <button id="btn-open-drawer" class="btn-icon" title="Abrir Menu">☰</button>
       <h1>Rio Localizador</h1>
       <button id="btn-logout" class="btn-icon" title="Sair">Sair</button>
     </div>
 
-    <!-- MÁSCARA ESCURA -->
     <div id="drawer-overlay" class="drawer-overlay hidden"></div>
 
     <!-- MENU LATERAL (DRAWER) -->
@@ -314,7 +374,13 @@
 
       <div class="drawer-content">
 
-        <!-- SEÇÃO: CADASTRO DE CONTATO (APENAS ADMINISTRADOR) -->
+        <!-- COMPARTILHAR WHATSAPP -->
+        <div class="drawer-section">
+          <h3>COMPARTILHAR ACESSO</h3>
+          <button id="btn-open-whatsapp-modal" class="btn-primary btn-whatsapp">Compartilhar via WhatsApp</button>
+        </div>
+
+        <!-- SEÇÃO: CADASTRO ADMIN -->
         <div id="admin-section" class="drawer-section hidden">
           <h3>CADASTRO DE CONTATO (ADMIN)</h3>
           <button id="btnAdminRegisterUser" class="btn-primary" style="background-color: #10b981;">+ Cadastrar Contato no Firebase</button>
@@ -324,22 +390,19 @@
         <div class="drawer-section">
           <h3>MEU PERFIL & PRIVACIDADE</h3>
           <button id="btn-toggle-history" class="btn-primary btn-secondary">Ver Meu Trajeto (30 dias)</button>
-          <button id="btn-toggle-privacy" class="btn-primary btn-privacy hidden">Privacidade: Histórico Visível para Amigos</button>
+          <button id="btn-toggle-privacy" class="btn-primary btn-privacy hidden">Privacidade: Histórico Visível</button>
         </div>
 
         <!-- SEÇÃO: ADICIONAR AMIGO -->
         <div class="drawer-section">
           <h3>ADICIONAR AMIGO</h3>
           <form id="add-friend-form">
-            <label for="friend-search-type" style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Buscar por:</label>
             <select id="friend-search-type" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 8px;">
               <option value="phone">Telefone (DDD + número)</option>
               <option value="email">E-mail</option>
             </select>
-
             <input type="tel" id="friend-phone-input" placeholder="Ex: 21999998888" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 8px;" required />
             <input type="email" id="friend-email-input" placeholder="Digite o e-mail do amigo" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 8px;" class="hidden" />
-
             <button type="submit" class="btn-primary">Enviar Solicitação</button>
           </form>
         </div>
@@ -355,12 +418,32 @@
       </div>
     </div>
 
-    <!-- ELEMENTO DO MAPA LEAFLET -->
+    <!-- MAPA -->
     <div id="map"></div>
 
-    <!-- BOTÃO RECENTRALIZAR GPS -->
-    <button id="btn-recenter" class="btn-recenter" title="Centralizar em mim">🎯</button>
+    <!-- PAINEL DE ROTA PONTO A / B -->
+    <div class="route-panel">
+      <h4>Navegação (Ponto A ao B)</h4>
+      <input type="text" id="route-origin" placeholder="Origem (Endereço ou 'Meu Local')" />
+      <input type="text" id="route-destination" placeholder="Destino (Endereço ou Clique no Mapa)" />
+      <button id="btn-calculate-route" class="btn-primary" style="padding: 8px;">Calcular Melhor Trajeto</button>
+      <div id="route-results" class="route-info hidden">Aguardando cálculo...</div>
+    </div>
 
+    <button id="btn-recenter" class="btn-recenter" title="Centralizar em mim">🎯</button>
+  </div>
+
+  <!-- MODAL DE COMPARTILHAMENTO WHATSAPP -->
+  <div id="whatsapp-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Selecionar Contatos p/ WhatsApp</h3>
+      <p style="font-size: 12px; color: #64748b; margin-bottom: 8px;">Marque os contatos que deseja enviar o link de acesso:</p>
+      <div id="whatsapp-contacts-checkboxes" class="whatsapp-contact-list">
+        <!-- Preenchido via JS -->
+      </div>
+      <button id="btn-send-whatsapp-selected" class="btn-primary btn-whatsapp">Enviar para Selecionados</button>
+      <button onclick="closeWhatsappModal()" class="btn-primary btn-secondary" style="margin-top: 6px;">Cancelar</button>
+    </div>
   </div>
 
   <!-- SCRIPT DA APLICAÇÃO -->
