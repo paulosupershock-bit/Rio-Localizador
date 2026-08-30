@@ -1,312 +1,239 @@
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rio Localizador</title>
 
-body, html {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background-color: #f4f6f9;
-}
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-.hidden {
-  display: none !important;
-}
+  <!-- Firebase Scripts (Compatibility Build) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-/* --- TELA DE AUTENTICAÇÃO --- */
-.auth-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100vw;
-  height: 100vh;
-  background: linear-gradient(135deg, #0052d4, #4364f7, #6fb1fc);
-}
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-.auth-box {
-  background: #ffffff;
-  padding: 30px;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  width: 100%;
-  max-width: 380px;
-  text-align: center;
-}
+  <!-- Estilos Customizados -->
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background-color: #f8fafc; }
+    .hidden { display: none !important; }
 
-.auth-box h2 {
-  color: #1e293b;
-  margin-bottom: 8px;
-}
+    /* TELA DE LOGIN */
+    #auth-screen {
+      display: flex; justify-content: center; align-items: center; min-height: 100vh;
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); padding: 20px;
+    }
+    .auth-card {
+      background: #ffffff; padding: 40px 32px; border-radius: 16px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); width: 100%; max-width: 380px; text-align: center;
+    }
+    .auth-card h2 { font-size: 26px; font-weight: 700; color: #0f172a; margin-bottom: 24px; }
+    .auth-card form { display: flex; flex-direction: column; gap: 12px; }
+    .auth-card input, .auth-card select {
+      width: 100%; padding: 12px 16px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; background-color: #f8fafc; outline: none;
+    }
+    .auth-card button, .btn-primary {
+      width: 100%; padding: 12px 16px; background-color: #2563eb; color: #ffffff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .auth-card button:hover, .btn-primary:hover { background-color: #1d4ed8; }
+    .btn-google { background-color: #ea4335 !important; margin-top: 8px; }
+    .btn-secondary { background-color: #475569 !important; }
+    .btn-privacy { background-color: #d97706 !important; color: white; margin-top: 8px; }
+    .btn-whatsapp { background-color: #25d366 !important; color: white; margin-top: 8px; }
+    .forgot-link { display: inline-block; margin-top: 16px; color: #2563eb; text-decoration: none; font-size: 13px; }
 
-.auth-box p {
-  color: #64748b;
-  font-size: 14px;
-  margin-bottom: 20px;
-}
+    /* MAPA & LAYOUT */
+    #map-screen { width: 100%; height: 100vh; position: relative; }
+    #map { width: 100%; height: 100%; z-index: 1; }
+    .leaflet-top { top: 70px !important; }
 
-.auth-box form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+    .header-bar {
+      position: absolute; top: 0; left: 0; right: 0; height: 60px;
+      background-color: #0f172a; color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 2000;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    .header-bar h1 { font-size: 18px; font-weight: 600; }
+    .btn-icon { background: transparent; border: none; color: white; font-size: 24px; cursor: pointer; padding: 4px 8px; }
 
-.auth-box input,
-.drawer-content input,
-.drawer-content select {
-  width: 100%;
-  padding: 10px 14px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s;
-}
+    /* MENU LATERAL (DRAWER) */
+    .drawer {
+      position: absolute; top: 0; left: -380px; width: 380px; height: 100%;
+      background: #ffffff; z-index: 2002; box-shadow: 4px 0 25px rgba(0, 0, 0, 0.25);
+      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column;
+    }
+    .drawer.open { left: 0; }
+    .drawer-header { background-color: #0f172a; color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .drawer-content { padding: 16px; overflow-y: auto; flex: 1; }
+    .drawer-section { margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 16px; }
+    .drawer-section h3 { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
+    .drawer-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); z-index: 2001; }
 
-.auth-box input:focus,
-.drawer-content input:focus,
-.drawer-content select:focus {
-  border-color: #2563eb;
-}
+    /* CARDS DE CONTATOS */
+    .friend-item {
+      display: flex; flex-direction: column; padding: 12px; background: #f8fafc;
+      border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px;
+    }
+    .friend-info strong { font-size: 14px; color: #1e293b; }
+    .friend-info small { color: #64748b; font-size: 12px; }
+    .time-status { color: #16a34a; font-size: 11px; font-weight: 600; margin-top: 2px; }
+    .friend-actions { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
+    .btn-action-small {
+      flex: 1; min-width: 70px; padding: 6px 4px; background-color: #2563eb; color: white;
+      border: none; border-radius: 6px; font-size: 10px; font-weight: 600; cursor: pointer; text-align: center;
+    }
+    .btn-action-small.realtime { background-color: #059669; }
+    .btn-action-small.km { background-color: #7c3aed; }
+    .btn-action-small.alert { background-color: #d97706; }
+    .btn-action-small.route { background-color: #0284c7; }
 
-/* --- BOTÕES --- */
-button {
-  cursor: pointer;
-  border: none;
-  border-radius: 6px;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 14px;
-  transition: background-color 0.2s, opacity 0.2s;
-}
+    /* EDITAR NOME PERSONALIZADO */
+    .nickname-box { display: flex; gap: 4px; margin-top: 6px; }
+    .nickname-box input { flex: 1; padding: 4px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; }
+    .nickname-box button { padding: 4px 8px; font-size: 10px; background: #475569; color: white; border: none; border-radius: 4px; cursor: pointer; }
 
-.btn-primary {
-  background-color: #2563eb;
-  color: white;
-}
-.btn-primary:hover { background-color: #1d4ed8; }
+    /* PAINEL DE ROTA ISOLADO POR CONTATO */
+    .contact-route-container {
+      background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; margin-top: 8px; font-size: 12px;
+    }
+    .waypoint-row { display: flex; gap: 4px; margin-bottom: 6px; align-items: center; position: relative; }
+    .waypoint-row input { flex: 1; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px; }
+    .btn-check-point { background-color: #16a34a; color: white; border: none; padding: 6px 8px; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; }
+    
+    /* SUGESTÕES DE AUTOCOMPLETE */
+    .autocomplete-suggestions {
+      position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #cbd5e1;
+      border-radius: 0 0 4px 4px; max-height: 120px; overflow-y: auto; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .autocomplete-item { padding: 6px 8px; font-size: 11px; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+    .autocomplete-item:hover { background-color: #e2e8f0; }
 
-.btn-secondary {
-  background-color: #e2e8f0;
-  color: #1e293b;
-  width: 100%;
-}
-.btn-secondary:hover { background-color: #cbd5e1; }
+    /* MODAL DE ALERTA DE PROXIMIDADE INDIVIDUAL */
+    #proximity-modal {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(239, 68, 68, 0.9);
+      z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; padding: 20px;
+    }
+    #proximity-modal h2 { font-size: 26px; margin-bottom: 10px; }
+    #proximity-modal p { font-size: 15px; margin-bottom: 20px; }
+    .modal-btn-group { display: flex; gap: 10px; }
+    #proximity-modal button { background: white; color: #dc2626; padding: 10px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
 
-.btn-warning {
-  background-color: #d97706;
-  color: white;
-  width: 100%;
-}
-.btn-warning:hover { background-color: #b45309; }
+    /* BOTÃO RECENTRALIZAR GPS */
+    .btn-recenter {
+      position: absolute; bottom: 25px; right: 25px; z-index: 1000; width: 48px; height: 48px;
+      border-radius: 50%; background-color: white; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.25); cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center;
+    }
 
-.btn-danger {
-  background-color: #ef4444;
-  color: white;
-}
-.btn-danger:hover { background-color: #dc2626; }
+    /* MODAL WHATSAPP */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); z-index: 3000; display: flex; justify-content: center; align-items: center;
+    }
+    .modal-card { background: white; width: 90%; max-width: 360px; padding: 24px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .whatsapp-input-group { margin-bottom: 12px; }
+    .whatsapp-input-group input { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+  </style>
+</head>
+<body>
 
-.btn-accept {
-  background-color: #16a34a;
-  color: white;
-}
-.btn-accept:hover { background-color: #15803d; }
+  <!-- MODAL DE ALERTA DE PROXIMIDADE -->
+  <div id="proximity-modal" class="hidden">
+    <h2 id="prox-alert-title">⚠️ ALERTA DE PROXIMIDADE</h2>
+    <p id="proximity-desc">O contato está muito próximo de você.</p>
+    <div class="modal-btn-group">
+      <button onclick="executeProximityCheckAndDismiss()" style="background: #16a34a; color: white;">Fazer Check e Salvar</button>
+      <button onclick="dismissProximityAlertOnly()">Dispensar Alerta</button>
+    </div>
+  </div>
 
-.btn-link {
-  background: none;
-  color: #2563eb;
-  font-size: 13px;
-  padding: 4px;
-}
-.btn-link:hover { text-decoration: underline; }
+  <!-- TELA DE AUTENTICAÇÃO -->
+  <div id="auth-screen">
+    <div class="auth-card">
+      <h2>Rio Localizador</h2>
+      <form id="login-form">
+        <input type="email" id="email" placeholder="Seu e-mail" required />
+        <input type="password" id="password" placeholder="Sua senha" required />
+        <button type="submit">Entrar</button>
+      </form>
+      <button id="btn-google-login" class="btn-primary btn-google">Entrar com Google</button>
+      <button id="btn-register" class="btn-primary btn-secondary">Criar Minha Conta</button>
+      <a href="#" id="btn-forgot-password" class="forgot-link">Esqueceu a senha?</a>
+    </div>
+  </div>
 
-.btn-google {
-  background-color: #ffffff;
-  color: #374151;
-  border: 1px solid #d1d5db;
-  width: 100%;
-}
-.btn-google:hover { background-color: #f9fafb; }
+  <!-- TELA DO MAPA -->
+  <div id="map-screen" class="hidden">
+    <div class="header-bar">
+      <button id="btn-open-drawer" class="btn-icon">☰</button>
+      <h1>Rio Localizador</h1>
+      <button id="btn-logout" class="btn-icon">Sair</button>
+    </div>
 
-.auth-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 12px;
-}
+    <div id="drawer-overlay" class="drawer-overlay hidden"></div>
 
-.divider {
-  margin: 16px 0;
-  color: #94a3b8;
-  font-size: 12px;
-  position: relative;
-}
+    <!-- MENU LATERAL -->
+    <div id="drawer" class="drawer">
+      <div class="drawer-header">
+        <h2>Menu & Opções</h2>
+        <button id="btn-close-drawer" class="btn-icon">✕</button>
+      </div>
+      <div class="drawer-content">
+        <div class="drawer-section">
+          <h3>COMPARTILHAR ACESSO</h3>
+          <button id="btn-open-whatsapp-modal" class="btn-primary btn-whatsapp">Compartilhar via WhatsApp</button>
+        </div>
 
-/* --- TELA DO MAPA --- */
-.map-container {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
+        <div id="admin-section" class="drawer-section hidden">
+          <h3>CADASTRO DE CONTATO (ADMIN)</h3>
+          <button id="btnAdminRegisterUser" class="btn-primary" style="background-color: #10b981;">+ Cadastrar Contato</button>
+        </div>
 
-.app-header {
-  height: 56px;
-  background-color: #1e3a8a;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
+        <div class="drawer-section">
+          <h3>MEU PERFIL & PRIVACIDADE</h3>
+          <button id="btn-toggle-history" class="btn-primary btn-secondary">Ver Meu Trajeto (30 dias)</button>
+          <button id="btn-toggle-privacy" class="btn-primary btn-privacy">Privacidade: Histórico Visível</button>
+        </div>
 
-.app-header h1 {
-  font-size: 18px;
-  font-weight: 600;
-}
+        <div class="drawer-section">
+          <h3>ADICIONAR AMIGO</h3>
+          <form id="add-friend-form">
+            <select id="friend-search-type" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 8px;">
+              <option value="phone">Telefone (DDD + número)</option>
+              <option value="email">E-mail</option>
+            </select>
+            <input type="tel" id="friend-phone-input" placeholder="Ex: 21999998888" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 8px;" required />
+            <input type="email" id="friend-email-input" placeholder="E-mail do amigo" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 8px;" class="hidden" />
+            <button type="submit" class="btn-primary">Enviar Solicitação</button>
+          </form>
+        </div>
 
-.btn-icon {
-  background: transparent;
-  color: white;
-  font-size: 16px;
-  padding: 6px 10px;
-}
+        <div class="drawer-section">
+          <h3>MEUS CONTATOS</h3>
+          <div id="friends-list">
+            <p style="font-size: 13px; color: #94a3b8;">Nenhum contato adicionado.</p>
+          </div>
+        </div>
+      </div>
+    </div>
 
-#map {
-  flex: 1;
-  width: 100%;
-  height: calc(100vh - 56px);
-  z-index: 1;
-}
+    <div id="map"></div>
+    <button id="btn-recenter" class="btn-recenter" title="Centralizar em mim">🎯</button>
+  </div>
 
-.map-controls {
-  position: absolute;
-  bottom: 24px;
-  right: 24px;
-  z-index: 500;
-}
+  <!-- MODAL WHATSAPP -->
+  <div id="whatsapp-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3 style="margin-bottom: 12px; font-size: 16px; color: #0f172a;">Compartilhar via WhatsApp</h3>
+      <div class="whatsapp-input-group">
+        <input type="text" id="whatsapp-manual-input" placeholder="Digite nº (+DDI DDD 99999-8888) ou e-mail" />
+      </div>
+      <button id="btn-send-whatsapp-selected" class="btn-primary btn-whatsapp">Enviar Mensagem</button>
+      <button onclick="closeWhatsappModal()" class="btn-primary btn-secondary" style="margin-top: 6px;">Cancelar</button>
+    </div>
+  </div>
 
-.btn-fab {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background-color: #ffffff;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-  font-size: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* --- DRAWER (MENU LATERAL) --- */
-.drawer-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 1999;
-}
-
-.drawer {
-  position: fixed;
-  top: 0;
-  left: -340px;
-  width: 320px;
-  height: 100%;
-  background-color: #ffffff;
-  z-index: 2000;
-  box-shadow: 4px 0 16px rgba(0,0,0,0.15);
-  transition: transform 0.3s ease-in-out;
-  display: flex;
-  flex-direction: column;
-}
-
-.drawer.open {
-  transform: translateX(340px);
-}
-
-.drawer-header {
-  height: 56px;
-  background-color: #1e3a8a;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-}
-
-.drawer-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-}
-
-.drawer-section {
-  margin-bottom: 20px;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 16px;
-}
-
-.drawer-section h3 {
-  font-size: 13px;
-  text-transform: uppercase;
-  color: #64748b;
-  margin-bottom: 10px;
-  letter-spacing: 0.5px;
-}
-
-.section-desc {
-  font-size: 12px;
-  color: #64748b;
-  margin-bottom: 8px;
-}
-
-.list-container {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.empty-msg {
-  font-size: 13px;
-  color: #94a3b8;
-  font-style: italic;
-}
-
-.friend-item, .pending-request-item {
-  background-color: #f8fafc;
-  padding: 10px;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-  font-size: 13px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.friend-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.time-status {
-  font-size: 11px;
-}
-
-.time-status.online { color: #16a34a; }
-.time-status.outdated { color: #dc2626; }
-
-.btn-history-small {
-  font-size: 11px;
-  padding: 4px 8px;
-  background-color: #2563eb;
-  color: white;
-  align-self: flex-start;
-}
+  <script src="app.js"></script>
+</body>
+</html>
