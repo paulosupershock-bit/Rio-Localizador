@@ -132,8 +132,8 @@
       position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); z-index: 3000; display: flex; justify-content: center; align-items: center;
     }
     .modal-card { background: white; width: 90%; max-width: 360px; padding: 24px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-    .whatsapp-input-group { margin-bottom: 12px; }
-    .whatsapp-input-group input { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+    .whatsapp-contact-list { max-height: 150px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; margin-bottom: 12px; }
+    .whatsapp-contact-item { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 6px; }
   </style>
 </head>
 <body>
@@ -225,11 +225,9 @@
   <!-- MODAL WHATSAPP -->
   <div id="whatsapp-modal" class="modal-overlay hidden">
     <div class="modal-card">
-      <h3 style="margin-bottom: 12px; font-size: 16px; color: #0f172a;">Compartilhar via WhatsApp</h3>
-      <div class="whatsapp-input-group">
-        <input type="text" id="whatsapp-manual-input" placeholder="Digite nº (+DDI DDD 99999-8888) ou e-mail" />
-      </div>
-      <button id="btn-send-whatsapp-selected" class="btn-primary btn-whatsapp">Enviar Mensagem</button>
+      <h3>Selecionar Contatos p/ WhatsApp</h3>
+      <div id="whatsapp-contacts-checkboxes" class="whatsapp-contact-list"></div>
+      <button id="btn-send-whatsapp-selected" class="btn-primary btn-whatsapp">Enviar para Selecionados</button>
       <button onclick="closeWhatsappModal()" class="btn-primary btn-secondary" style="margin-top: 6px;">Cancelar</button>
     </div>
   </div>
