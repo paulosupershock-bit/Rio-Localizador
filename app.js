@@ -1,5 +1,5 @@
 // ==========================================================================
-// RIO LOCALIZADOR - APP.JS COMPLETO E CORRIGIDO
+// RIO LOCALIZADOR - APP.JS COMPLETO E ATUALIZADO
 // ==========================================================================
 
 // Variáveis Globais de Estado
@@ -56,7 +56,15 @@ document.addEventListener("DOMContentLoaded", () => {
   privacyToggleBtn = document.getElementById("privacy-toggle-btn");
   historyRouteBtn = document.getElementById("history-route-btn");
 
-  // Configuração Inicial de Autenticação Observer
+  // Configuração Inicial de Autenticação Observer e Tratamento de Redirecionamento do Google
+  auth.getRedirectResult().then((result) => {
+    if (result.user) {
+      saveUserDataToFirebase(result.user);
+    }
+  }).catch((error) => {
+    console.error("Erro no retorno do redirecionamento do Google:", error);
+  });
+
   auth.onAuthStateChanged((user) => {
     if (user) {
       if (authContainer) authContainer.classList.add("hidden");
@@ -64,7 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
       
       if (userEmailDisplay) userEmailDisplay.innerText = user.email || user.displayName || "Usuário";
       
-      // Garante que o usuário está salvo no Firebase (corrige o problema de sumir do banco)
+      // Garante que o usuário está salvo no Firebase
       saveUserDataToFirebase(user);
 
       // Verifica se entrou através de um link compartilhado via WhatsApp (?phone=...)
@@ -182,13 +190,12 @@ function setupAuthEvents() {
   }
 
   if (btnGoogleLogin) {
-    btnGoogleLogin.addEventListener("click", () => {
+    btnGoogleLogin.addEventListener("click", (e) => {
+      e.preventDefault();
       const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithPopup(provider)
-        .then((result) => {
-          saveUserDataToFirebase(result.user);
-        })
-        .catch(err => alert("Erro no login com Google: " + err.message));
+      auth.signInWithRedirect(provider).catch((err) => {
+        alert("Erro no login com Google: " + err.message);
+      });
     });
   }
 
@@ -222,14 +229,12 @@ function startLocationBroadcasting(uid) {
     const lng = position.coords.longitude;
     const timestamp = Date.now();
 
-    // Grava localização atual
     database.ref(`locations/${uid}`).set({
       latitude: lat,
       longitude: lng,
       timestamp: timestamp
     });
 
-    // Grava histórico de trajeto
     database.ref(`location_history/${uid}`).push({
       latitude: lat,
       longitude: lng,
@@ -266,7 +271,7 @@ function closeDrawer() {
 }
 
 // ==========================================================================
-// 4. MODAL DE WHATSAPP (CORRIGIDO)
+// 4. MODAL DE WHATSAPP
 // ==========================================================================
 function setupWhatsappModalEvents() {
   if (btnOpenWhatsappModal) {
@@ -323,7 +328,7 @@ function setupFriendSystem() {
         return;
       }
 
-      const searchType = friendInputType.value; // 'phone' ou 'email'
+      const searchType = friendInputType.value;
       database.ref('users').orderByChild(searchType).equalTo(val).once('value').then((snapshot) => {
         if (!snapshot.exists()) {
           alert("Nenhum usuário encontrado com esse " + (searchType === 'phone' ? 'telefone' : 'e-mail') + ".");
@@ -341,7 +346,6 @@ function setupFriendSystem() {
           return;
         }
 
-        // Envia solicitação pendente
         database.ref(`friend_requests/${targetUid}/${myUid}`).set({
           email: auth.currentUser.email,
           timestamp: firebase.database.ServerValue.TIMESTAMP
@@ -458,7 +462,6 @@ function loadPendingRequests(myUid) {
 window.acceptFriendRequest = function(requesterUid) {
   const myUid = auth.currentUser.uid;
   
-  // Cria amizade mútua
   const updates = {};
   updates[`friendships/${myUid}/${requesterUid}`] = true;
   updates[`friendships/${requesterUid}/${myUid}`] = true;
